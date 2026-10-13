@@ -309,7 +309,8 @@ function td(s){ // traduit un terme de données (français dans les fichiers) po
   if(DATA_EN[s]) return DATA_EN[s];
   let m=s.match(/^J([12]) (.+)$/); if(m) return 'P'+m[1]+' '+(DATA_EN[m[2]]||m[2]);
   m=s.match(/^(Pièce|Compteur|Blocage) (\d)$/); if(m) return DATA_EN[m[1]]+' '+m[2];
-  return s.replace(/^Relevé du cuivre\s*:\s*/,'Copper layout: ').replace(/^Relevé synthétique/,'Synthetic layout');
+  return s.replace(/^Relevé du cuivre\s*:\s*/,'Copper layout: ').replace(/^Relevé synthétique/,'Synthetic layout')
+    .replace(/^Recréation KiCad et scans\s*:\s*/,'KiCad recreation and scans: ').replace('(domaine public)','(public domain)');
 }
 let lang=null;
 try{lang=JSON.parse(localStorage.getItem('pcbnet-prefs')||'{}').lang||null;}catch(e){}
