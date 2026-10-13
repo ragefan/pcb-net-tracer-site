@@ -1,4 +1,4 @@
-PCB Net Tracer 1.4.0 (2026-10-13)
+PCB Net Tracer 1.5.1 (2026-10-13)
 =================================
 
 FR — Touchez une pin sur l'image d'une carte double face : le net complet s'affiche sur les deux faces.
@@ -17,9 +17,10 @@ The app's “Data” button checks that each board's files are complete and cons
 
 Crédits / Credits
   Outil pensé par Ragefan / tool designed by Ragefan
-  Relevés du cuivre / copper layouts :
+  Sources des cartes / board sources :
   - Neo Geo AES 3-5 — Recréation KiCad et scans : Board-Folk (domaine public)
   - Neo Geo MV1FZS (NEO-MVH) — Relevé du cuivre : GI@NTS 2015
+  - Neo Geo MV4 (carte principale) — Schémas : Alpha Denshi / SNK (wiki NeoGeo Dev) · scans : mvs-scans.com · liaisons transcrites à la main
   Polices / fonts : IBM Plex (SIL Open Font License 1.1, viewer/fonts/OFL.txt)
   Brochages et descriptions des signaux / pinouts and signal descriptions : neogeodev/SVGPinout et
   NeoGeo Development Wiki, fiches constructeurs / datasheets
