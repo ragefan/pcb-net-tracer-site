@@ -1,0 +1,18 @@
+{
+ "boards": [
+  {
+   "id": "mv1fzs",
+   "name": "Neo Geo MV1FZS (NEO-MVH)",
+   "credit": "Relevé du cuivre : GI@NTS 2015",
+   "path": "mv1fzs/build/",
+   "tool": "1.2.0",
+   "version": "5721adbd35c7",
+   "w": 3072,
+   "h": 2563,
+   "parts": 48,
+   "nets": 1112,
+   "thumb": "thumb.jpg",
+   "built": "2026-10-13"
+  }
+ ]
+}

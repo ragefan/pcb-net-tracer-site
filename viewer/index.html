@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14171a">
+<title>PCB Net Tracer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Net Tracer">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+/* Polices locales (IBM Plex, OFL, sous-ensemble latin) : disponibles hors-ligne */
+@font-face{font-family:"IBM Plex Mono";font-weight:400;font-display:swap;src:url(fonts/plex-mono-400.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-weight:500;font-display:swap;src:url(fonts/plex-mono-500.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans Condensed";font-weight:400;font-display:swap;src:url(fonts/plex-sans-cond-400.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans Condensed";font-weight:500;font-display:swap;src:url(fonts/plex-sans-cond-500.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans Condensed";font-weight:600;font-display:swap;src:url(fonts/plex-sans-cond-600.woff2) format("woff2")}
+/* Layout: plein écran — barre d'outils en haut, carte au centre, fiche du net en bas (style banc de mesure) */
+:root{
+  --bench:#14171a;      /* fond de l'établi */
+  --panel:#1d2226;      /* barres et fiche */
+  --line:#2e353b;       /* filets */
+  --ink:#e6e9e4;        /* texte */
+  --muted:#8d969c;      /* texte secondaire */
+  --solder:#ffb21e;     /* net sur la face affichée */
+  --probe:#3fd0ff;      /* net sur l'autre face */
+  --warn:#ff7a59;
+  --ok:#3ccf6e;         /* pastille : fichier conforme */
+  --ko:#ff4d4d;         /* pastille : fichier absent ou d'un autre build */
+  --f-ui:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bench);color:var(--ink);font-family:var(--f-ui);font-size:15px;overflow:hidden;
+  display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:600;letter-spacing:.02em;margin-right:auto;display:flex;align-items:baseline;gap:8px;min-width:0}
+.brand small{font-family:var(--f-data);font-size:11px;color:var(--muted);font-weight:400;white-space:nowrap}
+.board-btn{background:transparent;border:0;padding:3px 6px;margin:-3px -6px;font:inherit;font-weight:600;color:inherit;cursor:pointer;
+  display:inline-flex;align-items:baseline;gap:6px;border-radius:6px;min-width:0;text-align:left}
+.board-btn #b-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board-btn .chev{color:var(--muted);font-size:12px} .board-btn:hover .chev{color:var(--ink)}
+.board-btn:focus-visible{outline:2px solid var(--solder);outline-offset:1px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:6px 11px;font-size:14px;color:var(--muted);cursor:pointer;min-height:34px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bench);font-weight:600}
+.seg button:focus-visible,.tool:focus-visible,.act:focus-visible{outline:2px solid var(--solder);outline-offset:1px}
+#stage{position:relative;flex:1;min-height:0;touch-action:none;background:var(--bench);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+canvas{display:block;width:100%;height:100%}
+.tools{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+.tool{width:40px;height:40px;border-radius:8px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 88%,transparent);
+  font-family:var(--f-data);font-size:13px;cursor:pointer;display:grid;place-items:center}
+.tool[aria-pressed="true"]{border-color:var(--probe);color:var(--probe)}
+#loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-data);font-size:13px;color:var(--muted)}
+.sheet{background:var(--panel);border-top:1px solid var(--line);padding:0 14px calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;
+  flex:none;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain}
+/* poignée : glisser pour changer la hauteur du bandeau, toucher pour le replier / le rouvrir */
+.grip{position:sticky;top:0;z-index:1;flex:none;height:22px;margin:0 -14px -4px;display:grid;place-items:center;
+  background:var(--panel);cursor:ns-resize;touch-action:none}
+.grip span{width:40px;height:4px;border-radius:2px;background:var(--line);transition:background .15s}
+.grip:hover span,.grip:focus-visible span,.grip.drag span{background:var(--muted)}
+.grip:focus-visible{outline:2px solid var(--solder);outline-offset:-2px}
+.sheet h2{margin:0;font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{font-family:var(--f-data);font-size:11px;font-weight:500;padding:2px 7px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.tag.top{border-color:var(--solder);color:var(--solder)}
+.tag.bot{border-color:var(--probe);color:var(--probe)}
+.tag.ex{color:var(--ink)}
+.facts{font-family:var(--f-data);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.note{font-size:14px;line-height:1.35;max-width:62ch;margin:0}
+.note.warn{color:var(--warn)}
+.note.cand{font-size:13px;color:var(--probe)}
+.note.pins{font-family:var(--f-data);font-size:12px;line-height:1.5;color:var(--ink)}
+.note.pins b{font-weight:500;color:var(--solder)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.act{background:transparent;border:1px solid var(--line);border-radius:7px;padding:6px 12px;min-height:34px;cursor:pointer;font-size:14px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-left:auto}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.disclaim{font-size:12px;color:var(--muted);margin:0;line-height:1.35}
+@media (max-width:520px){.brand small{display:none}.legend{margin-left:0}
+  /* version sur deux lignes, à droite des boutons Dessus/Pistes, pour ne pas ajouter de ligne à la barre */
+  .app-ver{display:inline-flex;flex-direction:column;align-items:flex-end;margin-left:auto;line-height:1.25}
+  .bar .app-ver .d::before{content:none}}
+[hidden]{display:none!important}
+/* contrôle des fichiers de la carte */
+.data-btn{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--line);border-radius:7px;
+  padding:6px 10px;min-height:34px;cursor:pointer;font-size:14px;color:var(--muted)}
+.app-ver{font-family:var(--f-data);font-size:11px;color:var(--muted);white-space:nowrap;cursor:default}
+.app-ver .d::before{content:" · "}
+.data-btn:focus-visible{outline:2px solid var(--solder);outline-offset:1px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.dot.ok{background:var(--ok)} .dot.ko{background:var(--ko);box-shadow:0 0 0 3px color-mix(in srgb,var(--ko) 30%,transparent)}
+dialog.panel{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+  width:min(560px,calc(100vw - 24px));max-height:85vh;overflow:auto;box-sizing:border-box}
+dialog.panel::backdrop{background:rgba(0,0,0,.6)}
+dialog.panel h2{margin:0 0 2px;font-size:17px}
+.frow{display:grid;grid-template-columns:14px 1fr auto;gap:3px 10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.frow .nm{font-family:var(--f-data);font-size:13px;word-break:break-all}
+.frow .sz{font-family:var(--f-data);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.frow .crc,.frow .msg{grid-column:2/4}
+.frow .crc{font-family:var(--f-data);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.frow .crc b{font-weight:500;color:var(--ink)} .frow .crc b.ko{color:var(--ko)}
+.frow .msg{font-size:13px} .frow .msg.ko{color:var(--ko)} .frow .msg.ok{color:var(--muted)}
+#dd-sum{margin:8px 0 4px} #dd-sum.ko{color:var(--ko)}
+#dd-src summary{cursor:pointer;font-size:13px;color:var(--muted);margin-top:8px}
+#loading button{margin:10px 4px 0}
+/* menu de langue */
+.lang{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:140px;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.45);display:flex;flex-direction:column}
+.menu button{background:transparent;border:0;border-radius:5px;padding:8px 10px;text-align:left;cursor:pointer;font-size:14px;color:var(--ink)}
+.menu button:hover,.menu button:focus-visible{background:var(--line);outline:none}
+.menu button[aria-checked="true"]::after{content:" ✓";color:var(--solder)}
+/* choix de la carte */
+.bcard{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center;width:100%;margin-top:8px;padding:10px;
+  background:transparent;border:1px solid var(--line);border-radius:8px;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.bcard:hover,.bcard:focus-visible{border-color:var(--muted);outline:none}
+.bcard[aria-current="true"]{border-color:var(--solder)}
+.bcard img{width:96px;height:72px;object-fit:cover;border-radius:5px;background:var(--bench)}
+.bcard .t{font-weight:600} .bcard .m{font-family:var(--f-data);font-size:12px;color:var(--muted);margin-top:2px}
+.bcard .row{margin-top:5px}
+html{padding:env(safe-area-inset-top,0px) 0 0}
+body{margin:0}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="brand"><button class="board-btn" id="b-board" aria-haspopup="dialog" data-i18n-title="boardBtn"><span id="b-name">PCB Net Tracer</span><span class="chev" aria-hidden="true">▾</span></button> <small id="b-credit"></small></div>
+  <button class="data-btn" id="b-data" aria-haspopup="dialog" data-i18n-title="dataBtnTitle"><i class="dot" id="b-dot"></i><span data-i18n="dataBtn">Données</span></button>
+  <div class="lang">
+    <button class="data-btn" id="b-lang" aria-haspopup="menu" aria-expanded="false" aria-controls="m-lang" data-i18n-title="langBtn"><span aria-hidden="true">🌐</span><span id="b-lang-cur">FR</span><span class="chev" aria-hidden="true">▾</span></button>
+    <div class="menu" id="m-lang" role="menu" hidden>
+      <button role="menuitemradio" data-lang="fr" lang="fr">Français</button>
+      <button role="menuitemradio" data-lang="en" lang="en">English</button>
+    </div>
+  </div>
+  <div class="seg" role="group" data-i18n-aria="faceGroup">
+    <button id="f-top" aria-pressed="true" data-i18n="top">Dessus</button>
+    <button id="f-bot" aria-pressed="false" data-i18n="bottom">Dessous</button>
+  </div>
+  <div class="seg" role="group" data-i18n-aria="bgGroup">
+    <button id="b-draw" aria-pressed="true" data-i18n="draw">Pistes</button>
+    <button id="b-photo" aria-pressed="false" data-i18n="photo">Photo</button>
+  </div>
+  <small class="app-ver" id="b-ver" data-i18n-title="verTitle"></small>
+</div>
+
+<div id="stage">
+  <canvas id="cv" data-i18n-aria="canvas"></canvas>
+  <div class="tools">
+    <button class="tool" id="t-fit" data-i18n-title="fit" data-i18n-aria="fit">⤢</button>
+    <button class="tool" id="t-in" data-i18n-title="zoomIn" data-i18n-aria="zoomIn">+</button>
+    <button class="tool" id="t-out" data-i18n-title="zoomOut" data-i18n-aria="zoomOut">−</button>
+    <button class="tool" id="t-mir" data-i18n-title="mirrorTitle" data-i18n-aria="mirror" aria-pressed="false">⇋</button>
+    <button class="tool" id="t-lbl" data-i18n-title="labels" data-i18n-aria="labels" aria-pressed="true" hidden>IC</button>
+  </div>
+  <div id="loading" data-i18n="loading">Chargement de la carte…</div>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="grip" id="s-grip" role="separator" aria-orientation="horizontal" tabindex="0"
+       data-i18n-aria="gripAria" data-i18n-title="gripTitle"><span></span></div>
+  <h2 id="s-title" data-i18n="tapPrompt">Touchez une pin ou une piste</h2>
+  <div class="facts" id="s-facts"></div>
+  <p class="note" id="s-note"></p>
+  <p class="note pins" id="s-pins" hidden></p>
+  <p class="note cand" id="s-cand" hidden></p>
+  <div class="row">
+    <button class="act" id="a-frame" hidden data-i18n="frame">Cadrer le net</button>
+    <button class="act" id="a-clear" hidden data-i18n="clear">Effacer</button>
+    <div class="legend"><span><i style="background:var(--solder)"></i><span data-i18n="legShown">face affichée</span></span><span><i style="background:var(--probe)"></i><span data-i18n="legOther">autre face</span></span><span data-i18n="legSmd">▢ pin CMS</span><span data-i18n="legTh">◯ pin traversante / via</span></div>
+  </div>
+  <p class="disclaim"><span data-i18n="disc1">Tracé extrait automatiquement des relevés de cuivre</span><span id="s-credit"></span><span data-i18n="disc2">. Les couches internes n’y figurent pas. Confirme au multimètre avant de dessouder.</span></p>
+</div>
+
+<dialog class="panel" id="dlg-boards" aria-labelledby="db-title">
+  <h2 id="db-title" data-i18n="dbTitle">Choisir une carte</h2>
+  <div class="facts" id="db-sub"></div>
+  <div id="db-list"></div>
+  <p class="disclaim" style="margin:10px 0" data-i18n-html="dbNote"></p>
+  <div class="row"><button class="act" id="db-close" data-i18n="close">Fermer</button></div>
+</dialog>
+
+<dialog class="panel" id="dlg-data" aria-labelledby="dd-title">
+  <h2 id="dd-title" data-i18n="ddTitle">Fichiers de la carte</h2>
+  <div class="facts" id="dd-sub"></div>
+  <div class="facts" id="dd-ver"></div>
+  <p class="note" id="dd-sum"></p>
+  <div id="dd-list"></div>
+  <details id="dd-src"><summary data-i18n="ddSrc">Relevés et photos d’origine de ce build</summary><div id="dd-srclist"></div></details>
+  <p class="disclaim" style="margin:10px 0" data-i18n="ddNote"></p>
+  <div class="row"><button class="act" id="dd-check" data-i18n="ddCheck">Vérifier sur le serveur</button><button class="act" id="dd-close" data-i18n="close">Fermer</button></div>
+</dialog>
+
+<script src="version.js"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+// --- Langue de l'interface (français / anglais) : préférence mémorisée, sinon langue du navigateur
+const I18N={
+fr:{
+  boardBtn:'Choisir une carte', dataBtn:'Données', dataBtnTitle:'Fichiers de la carte : présence et version', langBtn:'Langue',
+  faceGroup:'Face', top:'Dessus', bottom:'Dessous', bgGroup:'Fond', draw:'Pistes', photo:'Photo',
+  canvas:'Circuit imprimé : touchez une piste ou une pastille',
+  fit:'Vue entière', zoomIn:'Zoomer', zoomOut:'Dézoomer', mirrorTitle:'Vue côté soudure réelle (miroir)', mirror:'Miroir',
+  labels:'Noms des composants et des broches', loading:'Chargement de la carte…',
+  gripAria:'Hauteur du bandeau : glisser, ou flèches haut/bas ; Entrée pour replier', gripTitle:'Glisser pour redimensionner, toucher pour replier',
+  tapPrompt:'Touchez une pin ou une piste', frame:'Cadrer le net', clear:'Effacer',
+  legShown:'face affichée', legOther:'autre face', legSmd:'▢ pin CMS', legTh:'◯ pin traversante / via',
+  disc1:'Tracé extrait automatiquement des relevés de cuivre', disc2:'. Les couches internes n’y figurent pas. Confirme au multimètre avant de dessouder.',
+  dbTitle:'Choisir une carte', close:'Fermer',
+  dbNote:'Catalogue <code>boards/index.json</code>, mis à jour par le pipeline à chaque build (ajouter une carte : <code>python pipeline/pcbnet.py new</code>, puis <code>build</code>).',
+  ddTitle:'Fichiers de la carte', ddSrc:'Relevés et photos d’origine de ce build',
+  ddNote:'Vert : fichier présent, CRC32, taille et dimensions identiques à ceux enregistrés par le pipeline dans board.json. Rouge : fichier absent, ou provenant d’une autre carte ou d’un autre build (l’affichage serait incohérent). « Vérifier sur le serveur » relit chaque fichier sans aucun cache.',
+  ddCheck:'Vérifier sur le serveur', checking:'Vérification…',
+  holdHint:'Pour viser une pin précise, garde le doigt appuyé : une loupe apparaît, glisse jusqu’à la pin et relâche.',
+  pinTitle:(p,n,nm)=>`${p} broche ${n} · ${nm} `, tagTop:'dessus', tagBot:'dessous', tagEx:'exemple',
+  fromPin:th=>'depuis une pin '+(th?'traversante':'CMS'),
+  facts:(c,p,v)=>`${c} pin${c>1?'s':''} CMS · ${p} pin${p>1?'s':''} traversante${p>1?'s':''} · ${v} via${v>1?'s':''}`,
+  linked:'Relié à : ', pinsOn:'Broches : ',
+  msgPlane:'Grande surface de cuivre : plan de masse ou d’alimentation local. Il est sans doute relié au reste par une couche interne.',
+  msgVia:'Ce net finit sur un seul via sans autre piste : il descend sans doute vers une couche interne (masse ou +5 V). La carte semble avoir des plans internes non visibles sur ce relevé.',
+  msgNoHole:'Aucun trou sur ce net : il ne relie que des pastilles CMS de cette face.', msgOneSide:'Le net reste sur une seule face.',
+  msgOther:'Touchez une autre piste, ou passez sur l’autre face pour suivre la partie en bleu.',
+  cand:(i,n)=>`Élément ${i} sur ${n} sous ton doigt. Touche encore au même endroit pour passer au voisin, ou garde le doigt appuyé pour viser à la loupe.`,
+  onTop:' · dessus', onBottom:' · dessous',
+  ok:'Conforme.', notChecked:'Non vérifié.', fileErr:e=>`Fichier ${e}.`, http:s=>`absent (${s})`, net:'injoignable',
+  badImg:'illisible (pas une image valide)', badJson:'illisible',
+  dims:(w,h,W,H)=>`Dimensions ${w}×${h} au lieu de ${W}×${H} : image d’une autre carte ou d’un autre build.`,
+  noPrint:'Pas d’empreinte dans board.json : reconstruire la carte avec le pipeline à jour.',
+  mismatch:'Ne correspond pas à ce build (CRC ou taille différents) : fichier d’une autre carte ou d’un autre build.',
+  boardDesc:v=>`Description de la carte, version ${v}.`, boardErr:e=>`Fichier ${e} : la carte ne peut pas être affichée.`,
+  boardVer:(sv,v)=>`Le serveur a la version ${sv}, l’écran affiche la ${v} : recharge la page.`,
+  dotOk:'Fichiers de la carte : tous conformes', dotKo:'Fichiers de la carte : problème détecté, ouvrir pour le détail', dotUnk:'Fichiers de la carte : non vérifiés',
+  ddSub:(dir,srv,tm)=>`dossier ${dir} · `+(srv?`vérifié sur le serveur à ${tm}`:'fichiers chargés par cette page'),
+  sumOk:'Tous les fichiers sont présents et correspondent à ce build.', sumKo:'Problème : au moins un fichier est absent ou ne correspond pas à ce build.',
+  sumUnk:'Certains fichiers n’ont pas pu être vérifiés.', crcRead:'CRC32 lu ', expected:' · attendu ', expectedNone:' · attendu : —',
+  MB:' Mo', kB:' ko', role:r=>r,
+  dbCount:n=>`${n} carte${n>1?'s':''} dans le catalogue`,
+  dbMissing:'Catalogue introuvable (boards/index.json) : lance « python pipeline/pcbnet.py index » après avoir construit une carte.',
+  card:(p,n,v,b)=>`${p} composant${p>1?'s':''} · ${n} nets · version ${v} · ${b}`, tagShown:'affichée', tagOffline:'disponible hors-ligne',
+  choose:'Choisis une carte.', noBoard:'Aucune carte disponible : construis-en une avec le pipeline (README, « Ajouter une carte »).',
+  offline:'Carte indisponible hors-ligne : ouvre-la une fois avec le réseau pour la garder sur l’appareil.',
+  loadErr:e=>`Impossible de charger la carte (${e}). Recharge la page.`, seeFiles:'Voir les fichiers', otherBoard:'Choisir une autre carte',
+  verTitle:'Version de l’outil PCB Net Tracer et date de génération',
+  ddVer:(v,bv)=>`Outil v${v} · carte générée par le pipeline `+(bv?`v${bv}`:'d’une version antérieure à 1.0.0'),
+},
+en:{
+  boardBtn:'Choose a board', dataBtn:'Data', dataBtnTitle:'Board files: presence and version', langBtn:'Language',
+  faceGroup:'Side', top:'Top', bottom:'Bottom', bgGroup:'Background', draw:'Traces', photo:'Photo',
+  canvas:'Circuit board: tap a trace or a pad',
+  fit:'Fit board', zoomIn:'Zoom in', zoomOut:'Zoom out', mirrorTitle:'Real solder-side view (mirror)', mirror:'Mirror',
+  labels:'Component and pin names', loading:'Loading board…',
+  gripAria:'Panel height: drag, or up/down arrows; Enter to collapse', gripTitle:'Drag to resize, tap to collapse',
+  tapPrompt:'Tap a pin or a trace', frame:'Zoom to net', clear:'Clear',
+  legShown:'shown side', legOther:'other side', legSmd:'▢ SMD pin', legTh:'◯ through-hole pin / via',
+  disc1:'Traces extracted automatically from the copper layouts', disc2:'. Inner layers are not included. Check with a multimeter before desoldering.',
+  dbTitle:'Choose a board', close:'Close',
+  dbNote:'Catalog <code>boards/index.json</code>, updated by the pipeline on every build (add a board: <code>python pipeline/pcbnet.py new</code>, then <code>build</code>).',
+  ddTitle:'Board files', ddSrc:'Original layouts and photos of this build',
+  ddNote:'Green: file present, CRC32, size and dimensions identical to those recorded by the pipeline in board.json. Red: file missing, or from another board or another build (the display would be inconsistent). “Check on server” re-reads every file bypassing all caches.',
+  ddCheck:'Check on server', checking:'Checking…',
+  holdHint:'To aim at a precise pin, keep your finger down: a magnifier appears, slide to the pin and release.',
+  pinTitle:(p,n,nm)=>`${p} pin ${n} · ${nm} `, tagTop:'top', tagBot:'bottom', tagEx:'example',
+  fromPin:th=>'from '+(th?'a through-hole pin':'an SMD pin'),
+  facts:(c,p,v)=>`${c} SMD pin${c!==1?'s':''} · ${p} through-hole pin${p!==1?'s':''} · ${v} via${v!==1?'s':''}`, // anglais : 0 au pluriel
+  linked:'Connected to: ', pinsOn:'Pins: ',
+  msgPlane:'Large copper area: local ground or power plane. It is probably connected to the rest through an inner layer.',
+  msgVia:'This net ends on a single via with no other trace: it probably goes down to an inner layer (ground or +5 V). The board seems to have inner planes that are not visible on this layout.',
+  msgNoHole:'No hole on this net: it only connects SMD pads on this side.', msgOneSide:'The net stays on one side.',
+  msgOther:'Tap another trace, or switch to the other side to follow the blue part.',
+  cand:(i,n)=>`Item ${i} of ${n} under your finger. Tap the same spot again to move to the next one, or keep your finger down to aim with the magnifier.`,
+  onTop:' · top', onBottom:' · bottom',
+  ok:'OK.', notChecked:'Not checked.', fileErr:e=>`File ${e}.`, http:s=>`missing (${s})`, net:'unreachable',
+  badImg:'unreadable (not a valid image)', badJson:'unreadable',
+  dims:(w,h,W,H)=>`Dimensions ${w}×${h} instead of ${W}×${H}: image from another board or another build.`,
+  noPrint:'No fingerprint in board.json: rebuild the board with the up-to-date pipeline.',
+  mismatch:'Does not match this build (different CRC or size): file from another board or another build.',
+  boardDesc:v=>`Board description, version ${v}.`, boardErr:e=>`File ${e}: the board cannot be displayed.`,
+  boardVer:(sv,v)=>`The server has version ${sv}, the screen shows ${v}: reload the page.`,
+  dotOk:'Board files: all OK', dotKo:'Board files: problem detected, open for details', dotUnk:'Board files: not checked',
+  ddSub:(dir,srv,tm)=>`folder ${dir} · `+(srv?`checked on the server at ${tm}`:'files loaded by this page'),
+  sumOk:'All files are present and match this build.', sumKo:'Problem: at least one file is missing or does not match this build.',
+  sumUnk:'Some files could not be checked.', crcRead:'CRC32 read ', expected:' · expected ', expectedNone:' · expected: —',
+  MB:' MB', kB:' kB', role:r=>({'relevé dessus':'top layout','relevé dessous':'bottom layout','photo dessus':'top photo','photo dessous':'bottom photo'})[r]||r,
+  dbCount:n=>`${n} board${n!==1?'s':''} in the catalog`,
+  dbMissing:'Catalog not found (boards/index.json): run “python pipeline/pcbnet.py index” after building a board.',
+  card:(p,n,v,b)=>`${p} component${p!==1?'s':''} · ${n} nets · version ${v} · ${b}`, tagShown:'shown', tagOffline:'available offline',
+  choose:'Choose a board.', noBoard:'No board available: build one with the pipeline (README, “Adding a board”).',
+  offline:'Board unavailable offline: open it once while online to keep it on this device.',
+  loadErr:e=>`Unable to load the board (${e}). Reload the page.`, seeFiles:'Show files', otherBoard:'Choose another board',
+  verTitle:'PCB Net Tracer tool version and build date',
+  ddVer:(v,bv)=>`Tool v${v} · board generated by pipeline `+(bv?`v${bv}`:'older than 1.0.0'),
+}};
+const APP=self.PCBNET_VERSION||{version:'?',date:''}; // viewer/version.js
+// Termes français des données (board.json : noms de composants, broches JAMMA, crédit) traduits pour l'anglais
+const DATA_EN={'RAM 68k':'68k RAM','RAM sauvegarde':'Backup RAM','VRAM rapide':'Fast VRAM','RAM palette':'Palette RAM','RAM Z80':'Z80 RAM',
+  'JAMMA composants':'JAMMA component side','JAMMA soudure':'JAMMA solder side','Détrompeur':'Key','HP +':'Speaker +','HP −':'Speaker −',
+  'Rouge':'Red','Vert':'Green','Bleu':'Blue','Masse vidéo':'Video GND','Masse audio':'Audio GND','Synchro':'Sync','GND pré':'Pre GND',
+  'Filtre':'Ripple filter','Haut':'Up','Bas':'Down','Gauche':'Left','Droite':'Right','Pièce':'Coin','Compteur':'Coin counter','Blocage':'Coin lockout'};
+function td(s){ // traduit un terme de données (français dans les fichiers) pour l'interface anglaise
+  if(lang!=='en'||typeof s!=='string') return s;
+  if(DATA_EN[s]) return DATA_EN[s];
+  let m=s.match(/^J([12]) (.+)$/); if(m) return 'P'+m[1]+' '+(DATA_EN[m[2]]||m[2]);
+  m=s.match(/^(Pièce|Compteur|Blocage) (\d)$/); if(m) return DATA_EN[m[1]]+' '+m[2];
+  return s.replace(/^Relevé du cuivre\s*:\s*/,'Copper layout: ').replace(/^Relevé synthétique/,'Synthetic layout');
+}
+let lang=null;
+try{lang=JSON.parse(localStorage.getItem('pcbnet-prefs')||'{}').lang||null;}catch(e){}
+if(lang!=='fr'&&lang!=='en') lang=(navigator.language||'fr').toLowerCase().startsWith('fr')?'fr':'en';
+const t=(k,...a)=>{const v=I18N[lang][k]??I18N.fr[k]; return typeof v==='function'?v(...a):v;};
+function applyStatic(){ // textes de la page marqués data-i18n / -title / -aria / -html
+  document.documentElement.lang=lang;
+  for(const e of document.querySelectorAll('[data-i18n]')) e.textContent=t(e.dataset.i18n);
+  for(const e of document.querySelectorAll('[data-i18n-html]')) e.innerHTML=t(e.dataset.i18nHtml); // textes du dictionnaire uniquement
+  for(const e of document.querySelectorAll('[data-i18n-title]')) e.title=t(e.dataset.i18nTitle);
+  for(const e of document.querySelectorAll('[data-i18n-aria]')) e.setAttribute('aria-label',t(e.dataset.i18nAria));
+  $('b-lang-cur').textContent=lang.toUpperCase();
+  const bv=$('b-ver'), sp=(c,txt)=>{const e=document.createElement('span'); e.className=c; e.textContent=txt; return e;};
+  bv.replaceChildren(sp('v','v'+APP.version));
+  if(APP.date) bv.append(sp('d',new Date(APP.date+'T12:00:00').toLocaleDateString(lang,{day:'numeric',month:'short',year:'numeric'})));
+  for(const b of document.querySelectorAll('#m-lang [data-lang]')) b.setAttribute('aria-checked',b.dataset.lang===lang);
+}
+// Dossier des données produites par pipeline/pcbnet.py ; surchargeable par ?board=chemin.
+// Sans paramètre (appli installée), on rouvre la dernière carte chargée.
+// Carte affichée : ?board=dossier, sinon la dernière ouverte, sinon le catalogue écrit par le pipeline
+// (une seule carte : elle s'ouvre ; plusieurs : on la choisit).
+const CATALOG='../boards/index.json';
+const BOARD_PARAM=(new URLSearchParams(location.search)).get('board');
+let lastBoard=null; try{lastBoard=localStorage.getItem('pcbnet-board')}catch(e){}
+let DATA=null, CAT=null; // dossier de la carte affichée ; entrées du catalogue
+const cv=$('cv'), ctx=cv.getContext('2d'), stage=$('stage');
+let B=null, W=0, H=0;
+const img={}; const map={top:null,bot:null};
+let face='top', bg='draw', mirror=false, labels=true, sheetH=null; // sheetH : hauteur choisie du bandeau (null = auto)
+let PARTS=[], FONT_UI='sans-serif', FONT_DATA='monospace'; const PINS_BY_NET=new Map(); // composants (board.json "parts") et leurs broches par net
+let sel=0, isExample=false, overlay=null, oCtx=null, selPin=null;
+let s=1, tx=0, ty=0; // écran = s*img + t (img x éventuellement miroir)
+// préférences (l'ancienne clé « mv1fzs » est reprise)
+try{const p=JSON.parse(localStorage.getItem('pcbnet-prefs')||localStorage.getItem('mv1fzs')||'{}'); if(p.bg) bg=p.bg; if(p.mirror) mirror=!!p.mirror; if(p.labels===false) labels=false; if(p.sheetH>0) sheetH=p.sheetH;}catch(e){}
+function save(){try{localStorage.setItem('pcbnet-prefs',JSON.stringify({bg,mirror,labels,sheetH,lang}))}catch(e){}}
+
+// --- Intégrité : chaque image est lue en octets ; son CRC32, sa taille et ses dimensions sont comparés aux valeurs
+// que le pipeline a écrites dans board.json (files). Ce sont donc exactement les fichiers affichés qui sont vérifiés.
+const CRC_T=(()=>{const tab=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;tab[n]=c>>>0;}return tab;})();
+function crc32(buf){const b=new Uint8Array(buf);let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);
+  return ((c^0xFFFFFFFF)>>>0).toString(16).toUpperCase().padStart(8,'0');}
+let fileState={}, fileSource='load', srvB=null; // nom -> {crc,size,w,h} ou {err} ; srvB : board.json lu lors de la vérification serveur
+async function probe(url,opts){ // ne lève jamais : {crc,size,w,h,img} ou {err}
+  const res=await fetch(url,opts).catch(()=>null);
+  if(!res||!res.ok) return {err:res?['http',res.status]:['net']};
+  const buf=await res.arrayBuffer(), st={crc:crc32(buf),size:buf.byteLength};
+  const u=URL.createObjectURL(new Blob([buf],{type:res.headers.get('content-type')||''}));
+  st.img=await new Promise(ok=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=u;});
+  URL.revokeObjectURL(u); // image décodée : les octets bruts ne sont plus utiles
+  if(!st.img) return {...st,err:['badImg']};
+  st.w=st.img.naturalWidth; st.h=st.img.naturalHeight; return st;
+}
+async function load(url,name){ const st=await probe(url); fileState[name]=st; if(st.err) throw name; return st.img; }
+// fichiers nécessaires à l'affichage (les photos ne servent que si les deux faces existent)
+const needed=Bx=>['top_draw.jpg','bot_draw.jpg','net_top.png','net_bot.png']
+  .concat(Bx&&Bx.photos&&Bx.photos.photo_top&&Bx.photos.photo_bottom?['top_photo.jpg','bot_photo.jpg']:[]);
+function decode(i){
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(i,0,0);
+  const d=x.getImageData(0,0,W,H).data, m=new Uint16Array(W*H);
+  for(let p=0,q=0;p<m.length;p++,q+=4) m[p]=(d[q]<<8)|d[q+1];
+  return m;
+}
+
+const OFFLINE='hors-ligne';
+async function init(){
+  fileState={}; fileSource='load';
+  const res=await fetch(DATA+'board.json').catch(()=>null);
+  if(!res||!res.ok){ fileState['board.json']={err:res?['http',res.status]:['net']}; updateDataDot(); throw res?'board.json '+res.status:OFFLINE; }
+  B=await res.json(); W=B.w; H=B.h; fileState['board.json']={ver:B.version};
+  if(B.name){$('b-name').textContent=B.name; document.title=B.name+' · PCB Net Tracer';} showCredit();
+  const ph=B.photos||{}; const hasPhotos=!!(ph.photo_top&&ph.photo_bottom); if(!hasPhotos){bg='draw'; $('b-photo').hidden=true;}
+  const files=needed(B);
+  // ?v=version : le service worker garde ces images en cache tant que la carte n'est pas reconstruite
+  const urls=files.map(f=>DATA+f+(B.version?'?v='+B.version:''));
+  const got=await Promise.allSettled(urls.map((u,i)=>load(u,files[i])));
+  updateDataDot();
+  const miss=got.find(r=>r.status==='rejected'); if(miss) throw miss.reason; // nom du fichier manquant
+  const [td,bd,nt,nb,tp,bp]=got.map(r=>r.value);
+  img.top={draw:td,photo:tp||td}; img.bot={draw:bd,photo:bp||bd};
+  map.top=decode(nt); map.bot=decode(nb);
+  overlay=document.createElement('canvas'); overlay.width=W; overlay.height=H; oCtx=overlay.getContext('2d');
+  prepParts();
+  $('loading').hidden=true;
+  resize(); fit();
+  select(B.example,true);
+  syncUI();
+  try{localStorage.setItem('pcbnet-board',DATA)}catch(e){}
+  keepOffline([DATA+'board.json'].concat(urls,B.thumb?[DATA+B.thumb+'?v='+B.version]:[]),[CATALOG]);
+}
+
+const errText=e=>t(e[0],...e.slice(1)); // ['http',404] -> « absent (404) » / « missing (404) »
+function showCredit(){ // crédit toujours visible, même sur téléphone (bandeau)
+  const c=B&&B.credit?td(B.credit):''; $('b-credit').textContent=c; $('s-credit').textContent=c?' ('+c+')':'';
+}
+function fileStatus(st,exp,Bx){ // -> [classe ok|ko|unk, message]
+  if(!st) return ['unk',t('notChecked')];
+  if(st.err) return ['ko',t('fileErr',errText(st.err))];
+  if(Bx&&(st.w!==Bx.w||st.h!==Bx.h)) return ['ko',t('dims',st.w,st.h,Bx.w,Bx.h)];
+  if(!exp) return ['unk',t('noPrint')];
+  if(st.crc!==exp.crc32||st.size!==exp.size) return ['ko',t('mismatch')];
+  return ['ok',t('ok')];
+}
+function dataRows(){ // [nom, état, attendu, classe, message]
+  const Bx=fileSource==='server'?srvB:B, rows=[], bj=fileState['board.json'];
+  let bcls='ok', bmsg=t('boardDesc',bj&&bj.ver||'?');
+  if(!bj){bcls='unk';bmsg=t('notChecked');}
+  else if(bj.err){bcls='ko';bmsg=t('boardErr',errText(bj.err));}
+  else if(fileSource==='server'&&B&&bj.ver!==B.version){bcls='ko';bmsg=t('boardVer',bj.ver,B.version);}
+  rows.push(['board.json',bj,null,bcls,bmsg]);
+  for(const f of needed(Bx)){ const st=fileState[f], exp=Bx&&Bx.files&&Bx.files[f]; rows.push([f,st,exp,...fileStatus(st,exp,Bx)]); }
+  return rows;
+}
+function updateDataDot(){
+  const cls=dataRows().map(r=>r[3]), all=cls.includes('ko')?'ko':cls.every(c=>c==='ok')?'ok':'unk';
+  $('b-dot').className='dot '+all;
+  $('b-data').title=t(all==='ok'?'dotOk':all==='ko'?'dotKo':'dotUnk');
+  return all;
+}
+const kb=n=>n>=1048576?(n/1048576).toFixed(2)+t('MB'):Math.round(n/1024)+t('kB');
+let checkedAt=null; // heure de la dernière vérification sur le serveur
+function renderData(){
+  const all=updateDataDot(), list=$('dd-list'), sum=$('dd-sum');
+  $('dd-sub').textContent=(B&&B.name?B.name+' · ':'')+t('ddSub',DATA||'—',fileSource==='server',checkedAt&&checkedAt.toLocaleTimeString(lang));
+  sum.textContent=t(all==='ok'?'sumOk':all==='ko'?'sumKo':'sumUnk');
+  const Bv=fileSource==='server'?srvB:B; $('dd-ver').textContent=t('ddVer',APP.version,Bv&&Bv.tool);
+  sum.className='note '+(all==='ko'?'ko':'');
+  list.textContent='';
+  for(const [name,st,exp,cls,msg] of dataRows()){
+    const row=document.createElement('div'); row.className='frow';
+    const el=(tag,c,txt)=>{const e=document.createElement(tag); if(c) e.className=c; if(txt!=null) e.textContent=txt; row.append(e); return e;};
+    el('i','dot '+cls); el('span','nm',name); el('span','sz',st&&st.size?kb(st.size)+(st.w?' · '+st.w+'×'+st.h:''):'');
+    if(st&&st.crc){ const c=el('span','crc'); c.append(t('crcRead'));
+      const b=document.createElement('b'); b.textContent=st.crc; if(exp&&exp.crc32!==st.crc) b.className='ko'; c.append(b);
+      c.append(exp?t('expected')+exp.crc32:t('expectedNone')); }
+    el('span','msg '+cls,msg);
+    list.append(row);
+  }
+  const src=(fileSource==='server'?srvB:B)||{}, sl=$('dd-srclist'); sl.textContent='';
+  $('dd-src').hidden=!(src.sources&&src.sources.length);
+  for(const x of src.sources||[]){ const d=document.createElement('div'); d.className='facts'; d.style.padding='3px 0';
+    d.textContent=`${t('role',x.role)} : ${x.file} · ${kb(x.size)} · CRC32 ${x.crc32}`; sl.append(d); }
+}
+async function checkServer(){
+  const btn=$('dd-check'); btn.disabled=true; btn.textContent=t('checking');
+  const q='?check='+Date.now(), st={}; // ?check : le service worker laisse passer, rien n'est mis en cache
+  srvB=null;
+  const r=await fetch(DATA+'board.json'+q,{cache:'no-store'}).catch(()=>null);
+  if(!r||!r.ok) st['board.json']={err:r?['http',r.status]:['net']};
+  else{ try{ srvB=await r.json(); st['board.json']={ver:srvB.version}; }catch(e){ st['board.json']={err:['badJson']}; } }
+  await Promise.all(needed(srvB||B).map(async f=>{ st[f]=await probe(DATA+f+q,{cache:'no-store'}); delete st[f].img; }));
+  fileState=st; fileSource='server'; checkedAt=new Date();
+  btn.disabled=false; btn.textContent=t('ddCheck'); renderData();
+}
+const dlg=$('dlg-data');
+$('b-data').onclick=()=>{ renderData(); dlg.showModal(); };
+$('dd-close').onclick=()=>dlg.close();
+$('dd-check').onclick=checkServer;
+dlg.addEventListener('click',e=>{ if(e.target===dlg) dlg.close(); }); // clic hors du panneau
+
+// Garde la carte ouverte dans le cache hors-ligne (même cache que sw.js). Nécessaire à la première
+// visite, quand le service worker ne contrôle pas encore la page ; purge les anciennes versions.
+async function keepOffline(urls,extra=[]){
+  if(!('caches' in window)) return; // contexte non sécurisé (http://<ip>) : pas de hors-ligne
+  try{
+    const c=await caches.open('pcbnet-boards'), dir=new URL(DATA,location.href).href;
+    const keep=new Set(urls.map(u=>new URL(u,location.href).href));
+    for(const r of await c.keys()) if(r.url.startsWith(dir)&&!keep.has(r.url)) await c.delete(r);
+    for(const u of [...keep,...extra.map(u=>new URL(u,location.href).href)]) if(!(await c.match(u))) await c.add(u).catch(()=>{});
+  }catch(e){}
+}
+
+// --- Choix de la carte
+async function loadCatalog(){
+  try{ const r=await fetch(CATALOG); return r.ok?((await r.json()).boards||[]):null; }catch(e){ return null; }
+}
+const dlgB=$('dlg-boards');
+const sameDir=(a,b)=>!!a&&!!b&&new URL(a,location.href).href===new URL(b,location.href).href;
+async function openBoards(){
+  if(!CAT) CAT=await loadCatalog();
+  const list=$('db-list'); list.textContent='';
+  $('db-sub').textContent=CAT?t('dbCount',CAT.length):t('dbMissing');
+  const cache='caches' in window?await caches.open('pcbnet-boards').catch(()=>null):null;
+  for(const b of CAT||[]){
+    const dir='../boards/'+b.path, cur=sameDir(dir,DATA);
+    const off=cache&&await cache.match(new URL(dir+'board.json',location.href).href);
+    const btn=document.createElement('button'); btn.className='bcard'; if(cur) btn.setAttribute('aria-current','true');
+    const im=document.createElement('img'); im.alt=''; im.loading='lazy'; if(b.thumb) im.src=dir+b.thumb+'?v='+b.version;
+    const box=document.createElement('div'), line=(c,txt)=>{const e=document.createElement('div'); e.className=c; e.textContent=txt; box.append(e);};
+    line('t',b.name); if(b.credit) line('m',td(b.credit));
+    line('m',t('card',b.parts,b.nets,b.version,b.built));
+    const tags=document.createElement('div'); tags.className='row';
+    if(cur) tags.append(mkTag('top',t('tagShown'))); if(off) tags.append(mkTag('ex',t('tagOffline')));
+    if(tags.childNodes.length) box.append(tags);
+    btn.append(im,box);
+    btn.onclick=()=>{ if(cur){ dlgB.close(); return; } location.href=location.pathname+'?board='+encodeURIComponent(dir); };
+    list.append(btn);
+  }
+  if(!dlgB.open) dlgB.showModal();
+}
+function mkTag(c,txt){const e=document.createElement('span'); e.className='tag '+c; e.textContent=txt; return e;}
+$('b-board').onclick=openBoards;
+$('db-close').onclick=()=>dlgB.close();
+dlgB.addEventListener('click',e=>{ if(e.target===dlgB) dlgB.close(); });
+let lastLoading=null; // message affiché à la place de la carte : réécrit au changement de langue
+function loadingMsg(key,args,actions){ // message dans la zone de la carte (clé du dictionnaire), avec boutons éventuels
+  lastLoading=[key,args,actions];
+  const L=$('loading'); L.hidden=false; L.textContent=''; delete L.dataset.i18n;
+  const w=document.createElement('div'); w.style.textAlign='center'; w.style.padding='0 16px'; w.append(t(key,...args));
+  if(actions.length) w.append(document.createElement('br'));
+  for(const [label,fn] of actions){ const b=document.createElement('button'); b.className='act'; b.textContent=t(label); b.onclick=fn; w.append(b); }
+  L.append(w);
+}
+async function start(){
+  if(BOARD_PARAM||lastBoard){ DATA=(BOARD_PARAM||lastBoard).replace(/\/?$/,'/'); return init(); }
+  CAT=await loadCatalog();
+  if(CAT&&CAT.length===1){ DATA='../boards/'+CAT[0].path; return init(); }
+  if(CAT&&CAT.length){ loadingMsg('choose',[],[['boardBtn',openBoards]]); return openBoards(); }
+  loadingMsg('noBoard',[],[]);
+}
+
+// Composants : cadre, pas des broches, sens du texte de chaque broche (le long de la pastille, vers l'intérieur)
+function prepParts(){
+  PARTS=(B.parts||[]).map(P=>{
+    const xs=P.pins.map(p=>p[0]), ys=P.pins.map(p=>p[1]);
+    const cx0=Math.min(...xs), cx1=Math.max(...xs), cy0=Math.min(...ys), cy1=Math.max(...ys);
+    const ext=Math.max(...P.pins.map(p=>Math.max(p[2],p[3])))/2;
+    const gaps=P.pins.slice(1).map((p,i)=>Math.hypot(p[0]-P.pins[i][0],p[1]-P.pins[i][1])).sort((a,b)=>a-b);
+    const hz=P.pins.map(([x,y])=>Math.min(x-cx0,cx1-x)<Math.min(y-cy0,cy1-y)); // broche sur un côté vertical : texte horizontal
+    const pitch=gaps[gaps.length>>2]||10, row=Math.min(cx1-cx0,cy1-cy0)<pitch; // une seule rangée : connecteur de bord
+    return {...P, x0:cx0-ext, y0:cy0-ext, x1:cx1+ext, y1:cy1+ext, cx:(cx0+cx1)/2, cy:(cy0+cy1)/2, pitch, hz, row};
+  });
+  PINS_BY_NET.clear();
+  PARTS.forEach((P,pi)=>P.pins.forEach((p,k)=>{ if(!p[6]) return; if(!PINS_BY_NET.has(p[6])) PINS_BY_NET.set(p[6],[]); PINS_BY_NET.get(p[6]).push([pi,k]); }));
+  $('t-lbl').hidden=!PARTS.length;
+  const cs=getComputedStyle(document.body); FONT_UI=cs.getPropertyValue('--f-ui'); FONT_DATA=cs.getPropertyValue('--f-data');
+}
+const partOn=P=>P.th||P.face===(face==='top'?0:1); // traversant : visible des deux faces
+function boardTf(){const d=window.devicePixelRatio||1; ctx.setTransform(d*s*(mx()?-1:1),0,0,d*s,d*(tx+(mx()?W*s:0)),d*ty);}
+
+// Noms des composants et des broches, dessinés en coordonnées écran : le texte reste lisible en vue miroir.
+function drawLabels(){
+  if(!labels||!PARTS.length) return;
+  const d=window.devicePixelRatio||1, r=stage.getBoundingClientRect(), fl=face==='top'?0:1;
+  const sx=x=>tx+(mx()?W-x:x)*s, sy=y=>ty+y*s;
+  ctx.setTransform(d,0,0,d,0,0); ctx.textBaseline='middle';
+  for(const P of PARTS){
+    let X0=sx(P.x0), X1=sx(P.x1); if(X0>X1) [X0,X1]=[X1,X0];
+    const Y0=sy(P.y0), Y1=sy(P.y1), on=partOn(P);
+    if(X1<0||X0>r.width||Y1<0||Y0>r.height) continue;
+    if(!on&&PARTS.some(Q=>Q!==P&&Q.ref===P.ref&&partOn(Q))) continue; // ex. JAMMA : chaque face a sa rangée de doigts
+    ctx.lineWidth=1; ctx.setLineDash(on?[]:[5,4]); ctx.strokeStyle=on?'rgba(230,233,228,0.5)':'rgba(230,233,228,0.28)';
+    ctx.strokeRect(X0,Y0,X1-X0,Y1-Y0); ctx.setLineDash([]);
+    // nom au centre (composant de l'autre face : estompé, sans broches) ; masqué si le composant est trop petit à ce zoom
+    const big=Math.min(X1-X0,Y1-Y0)>=26||(Math.max(X1-X0,Y1-Y0)>=90&&Math.min(X1-X0,Y1-Y0)>=14);
+    if(big){
+      const fs=Math.max(10,Math.min(20,Math.min(X1-X0,Y1-Y0)*0.12)), mxc=(X0+X1)/2, myc=(Y0+Y1)/2;
+      ctx.textAlign='center'; ctx.font=`600 ${fs}px ${FONT_UI}`;
+      const nm=td(P.name), nw=ctx.measureText(nm).width;
+      ctx.fillStyle=on?'rgba(14,16,18,0.8)':'rgba(14,16,18,0.55)'; ctx.fillRect(mxc-nw/2-5,myc-fs*0.85,nw+10,fs*1.95+2);
+      ctx.fillStyle=on?'#e6e9e4':'rgba(230,233,228,0.55)'; ctx.fillText(nm,mxc,myc-fs*0.2);
+      ctx.font=`400 ${Math.round(fs*0.62)}px ${FONT_DATA}`;
+      ctx.fillStyle=on?'#8d969c':'rgba(141,150,156,0.6)'; ctx.fillText(P.ref+(P.chip&&P.chip!==P.name?' · '+P.chip:'')+(on?'':t(P.face?'onBottom':'onTop')),mxc,myc+fs*0.62);
+    }
+    if(!on) continue;
+    const f=Math.min(13,P.pitch*s*0.82); if(f<6) continue; // broches illisibles à ce zoom
+    ctx.font=`500 ${f}px ${FONT_DATA}`;
+    const ccx=sx(P.cx), ccy=sy(P.cy);
+    P.pins.forEach((pin,k)=>{
+      const [x,y,w,h,num,name,net]=pin, X=sx(x), Y=sy(y);
+      if(X<-60||X>r.width+60||Y<-60||Y>r.height+60) return;
+      const txt=f>=9?num+' '+td(name):td(name), hot=sel&&net===sel, tw=ctx.measureText(txt).width;
+      ctx.save();
+      // texte vers l'intérieur du composant ; pour une rangée unique (connecteur de bord), vers l'intérieur de la carte
+      if(P.hz[k]){ const dir=Math.sign(P.row?sx(W/2)-X:ccx-X)||1; ctx.translate(X+dir*(w*s/2+3),Y); ctx.textAlign=dir>0?'left':'right'; }
+      else{ const dir=Math.sign(P.row?sy(H/2)-Y:ccy-Y)||1; ctx.translate(X,Y+dir*(h*s/2+3)); ctx.rotate(-Math.PI/2); ctx.textAlign=dir>0?'right':'left'; }
+      const a=ctx.textAlign==='left'?0:-tw;
+      ctx.fillStyle=hot?'#ffb21e':(sel?'rgba(14,16,18,0.6)':'rgba(14,16,18,0.78)'); ctx.fillRect(a-2,-f*0.62,tw+4,f*1.24);
+      ctx.fillStyle=hot?'#14171a':(sel?'rgba(230,233,228,0.6)':'#e6e9e4'); ctx.fillText(txt,0,0);
+      ctx.restore();
+    });
+  }
+  ctx.textAlign='start'; boardTf();
+}
+
+function resize(){
+  const r=stage.getBoundingClientRect(), d=window.devicePixelRatio||1;
+  cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d);
+  draw();
+}
+function fit(){
+  const r=stage.getBoundingClientRect();
+  s=Math.min(r.width/W,r.height/H)*0.98; tx=(r.width-W*s)/2; ty=(r.height-H*s)/2; draw();
+}
+function fitBox(x0,y0,x1,y1){
+  const r=stage.getBoundingClientRect(), pad=40;
+  const w=Math.max(x1-x0,30), h=Math.max(y1-y0,30);
+  s=Math.min((r.width-2*pad)/w,(r.height-2*pad)/h,8);
+  let cx=(x0+x1)/2; if(mx()) cx=W-cx;
+  tx=r.width/2-cx*s; ty=r.height/2-(y0+y1)/2*s; draw();
+}
+const mx=()=>mirror&&face==='bot';
+function toImg(px,py){let x=(px-tx)/s; if(mx()) x=W-x; return [x,(py-ty)/s];}
+
+function draw(){
+  if(!B||!img.top) return; // images pas encore chargées
+  const d=window.devicePixelRatio||1;
+  ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#14171a'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(d*s*(mx()?-1:1),0,0,d*s,d*(tx+(mx()?W*s:0)),d*ty);
+  ctx.imageSmoothingEnabled=s<1.6;
+  ctx.drawImage(img[face][bg],0,0);
+  const fl=face==='top'?0:1, lw=Math.max(1,1.6/s);
+  if(!sel && s>=2.5){ // au zoom, montre les pastilles touchables
+    ctx.lineWidth=lw; ctx.strokeStyle='rgba(255,178,30,0.55)';
+    for(const p of B.pads){ if(p[4]!==fl) continue; ctx.strokeRect(p[0]-p[2]/2-1,p[1]-p[3]/2-1,p[2]+2,p[3]+2); }
+    for(const h of B.holes){ if(h[2]<B.viaR) continue; ctx.beginPath(); ctx.arc(h[0],h[1],h[2]+2,0,Math.PI*2); ctx.stroke(); }
+  }
+  if(sel){
+    ctx.fillStyle='rgba(10,12,14,0.62)'; ctx.fillRect(0,0,W,H);
+    ctx.drawImage(overlay,0,0);
+    ctx.lineWidth=Math.max(1.2,2/s);
+    for(const p of B.pads){ if(p[5]!==sel) continue;
+      ctx.strokeStyle=p[4]===fl?'#ffb21e':'#3fd0ff';
+      const m=Math.max(2,4/s); ctx.strokeRect(p[0]-p[2]/2-m,p[1]-p[3]/2-m,p[2]+2*m,p[3]+2*m); }
+    ctx.strokeStyle='#ffffff';
+    for(const h of B.holes){ if(h[4]!==sel) continue;
+      ctx.beginPath(); ctx.arc(h[0],h[1],Math.max(h[2]+1.5,7/s),0,Math.PI*2); ctx.stroke(); }
+    if(selPin){ // pin touchée
+      ctx.lineWidth=Math.max(2,3.5/s); ctx.strokeStyle='#ffffff';
+      ctx.beginPath(); ctx.arc(selPin[0],selPin[1],Math.max(selPin[2]+5,14/s),0,Math.PI*2); ctx.stroke();
+    }
+  }
+  drawLabels();
+  if(aim) drawLoupe();
+  else if(tapMark){ // zone couverte par le doigt au dernier toucher
+    let [x,y]=tapMark; ctx.setLineDash([4/s,4/s]); ctx.lineWidth=1.2/s; ctx.strokeStyle='rgba(255,255,255,0.7)';
+    ctx.beginPath(); ctx.arc(x,y,FINGER/s,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x-4/s,y); ctx.lineTo(x+4/s,y); ctx.moveTo(x,y-4/s); ctx.lineTo(x,y+4/s); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+// Loupe de visée (appui maintenu) : vue agrandie au-dessus du doigt, réticule = point visé
+const LR=70, LGAP=105;
+function loupeScale(){return Math.max(s*3.5,2.2);}
+function drawLoupe(){
+  const d=window.devicePixelRatio||1, r=stage.getBoundingClientRect();
+  const [ix,iy]=toImg(aim.x,aim.y); const sL=loupeScale();
+  let cx=aim.x, cy=aim.y-LGAP; if(cy-LR<4) cy=aim.y+LGAP;
+  cx=Math.min(Math.max(cx,LR+4),r.width-LR-4);
+  ctx.setTransform(d,0,0,d,0,0);
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,LR,0,Math.PI*2); ctx.clip();
+  ctx.fillStyle='#14171a'; ctx.fillRect(cx-LR,cy-LR,2*LR,2*LR);
+  const fx=mx()?-1:1;
+  ctx.setTransform(d*sL*fx,0,0,d*sL,d*(cx-fx*sL*ix),d*(cy-sL*iy));
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(img[face][bg],0,0);
+  if(sel){ctx.fillStyle='rgba(10,12,14,0.5)';ctx.fillRect(ix-LR/sL-2,iy-LR/sL-2,2*LR/sL+4,2*LR/sL+4);ctx.drawImage(overlay,0,0);}
+  const c=aimCand;
+  if(c){ ctx.lineWidth=2/sL; ctx.strokeStyle='#ffb21e';
+    if(c.pin){ if(c.pin[3]==='th'){ctx.beginPath();ctx.arc(c.pin[0],c.pin[1],c.pin[2]+1,0,Math.PI*2);ctx.stroke();}
+      else if(c.pin[4]) ctx.strokeRect(c.pin[0]-c.pin[4]/2-1,c.pin[1]-c.pin[5]/2-1,c.pin[4]+2,c.pin[5]+2); // broche de composant
+      else{const p=B.pads.find(q=>q[0]===c.pin[0]&&q[1]===c.pin[1]); if(p) ctx.strokeRect(p[0]-p[2]/2-1,p[1]-p[3]/2-1,p[2]+2,p[3]+2);} }
+  }
+  ctx.restore(); ctx.setTransform(d,0,0,d,0,0);
+  ctx.lineWidth=2; ctx.strokeStyle='#e6e9e4'; ctx.beginPath(); ctx.arc(cx,cy,LR,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle=c?'#ffb21e':'rgba(230,233,228,0.8)'; ctx.lineWidth=1.5; ctx.beginPath();
+  ctx.moveTo(cx-14,cy); ctx.lineTo(cx-4,cy); ctx.moveTo(cx+4,cy); ctx.lineTo(cx+14,cy);
+  ctx.moveTo(cx,cy-14); ctx.lineTo(cx,cy-4); ctx.moveTo(cx,cy+4); ctx.lineTo(cx,cy+14); ctx.stroke();
+}
+function aimUpdate(){
+  const [ix,iy]=toImg(aim.x,aim.y);
+  aimCand=candidatesAt(ix,iy,6*s/loupeScale(),3*s/loupeScale())[0]||null; // rayon de 6 px dans la loupe
+}
+
+function buildOverlay(){
+  oCtx.clearRect(0,0,W,H); if(!sel) return;
+  const n=B.nets[sel]; const x0=Math.max(0,n[0]-2),y0=Math.max(0,n[1]-2),x1=Math.min(W-1,n[2]+2),y1=Math.min(H-1,n[3]+2);
+  const w=x1-x0+1,h=y1-y0+1; const id=oCtx.createImageData(w,h), o=id.data;
+  const A=map[face], Bm=map[face==='top'?'bot':'top'];
+  const thick=s<1.2;
+  for(let y=y0;y<=y1;y++){ for(let x=x0;x<=x1;x++){
+    const p=y*W+x; let c=0;
+    if(A[p]===sel) c=1; else if(Bm[p]===sel) c=2;
+    else if(thick){ // élargit d'un pixel quand on voit la carte entière
+      if((x>0&&A[p-1]===sel)||(x<W-1&&A[p+1]===sel)||(y>0&&A[p-W]===sel)||(y<H-1&&A[p+W]===sel)) c=1;
+    }
+    if(!c) continue; const q=((y-y0)*w+(x-x0))*4;
+    if(c===1){o[q]=255;o[q+1]=178;o[q+2]=30;o[q+3]=255}else{o[q]=63;o[q+1]=208;o[q+2]=255;o[q+3]=150}
+  }}
+  oCtx.putImageData(id,x0,y0);
+}
+
+// Sélection : on classe tout ce qui est sous le doigt (pins et cuivre), les pins passent devant.
+// Toucher à nouveau au même endroit fait passer à l'élément voisin.
+const FINGER=18, PIN_BONUS=9, SAME_SPOT=16;
+let cands=[], candIdx=0, lastTap=null, tapMark=null, aim=null, aimCand=null, holdTimer=0;
+function candidates(x,y){ return candidatesAt(x,y,FINGER,PIN_BONUS); }
+function candidatesAt(x,y,finger,pinBonus){
+  const r=finger/s, bonus=pinBonus/s, fl=face==='top'?0:1, best=new Map();
+  const put=(net,score,pin)=>{ if(!net) return; const c=best.get(net); if(!c||score<c.score) best.set(net,{net,score,pin}); };
+  for(const p of B.pads){ if(p[4]!==fl||!p[5]) continue;
+    const dx=Math.max(Math.abs(x-p[0])-p[2]/2,0), dy=Math.max(Math.abs(y-p[1])-p[3]/2,0), d=Math.hypot(dx,dy);
+    if(d>r) continue;
+    // à l'intérieur de la pastille : départage par la distance au centre
+    const inner=d===0?Math.hypot(x-p[0],y-p[1])/(Math.max(p[2],p[3])+1)*0.01:0;
+    put(p[5],d-bonus+inner,[p[0],p[1],Math.max(p[2],p[3])/2,'cms']);
+  }
+  PARTS.forEach((P,pi)=>{ if(!partOn(P)||x<P.x0-r||x>P.x1+r||y<P.y0-r||y>P.y1+r) return;
+    P.pins.forEach((p,k)=>{ const [px,py,w,h,,,net]=p; if(!net) return;
+      const d=Math.hypot(Math.max(Math.abs(x-px)-w/2,0),Math.max(Math.abs(y-py)-h/2,0)); if(d>r) return;
+      const inner=d===0?Math.hypot(x-px,y-py)/(Math.max(w,h)+1)*0.01:0;
+      put(net,d-bonus+inner-0.001,[px,py,Math.max(w,h)/2,P.th?'th':'cms',w,h,pi,k]); }); // devant la pastille seule
+  });
+  for(const h of B.holes){ if(!h[4]) continue;
+    const d=Math.max(Math.hypot(x-h[0],y-h[1])-h[2]-1.5,0); if(d>r) continue;
+    const isPin=h[2]>=B.viaR;
+    put(h[4],d-(isPin?bonus:bonus*0.5),isPin?[h[0],h[1],h[2]+2,'th']:null);
+  }
+  const A=map[face], xi=Math.round(x), yi=Math.round(y), R=Math.ceil(r), st=Math.max(1,Math.floor(R/45));
+  for(let dy=-R;dy<=R;dy+=st){ const Y=yi+dy; if(Y<0||Y>=H) continue;
+    for(let dx=-R;dx<=R;dx+=st){ const X=xi+dx; if(X<0||X>=W) continue;
+      const v=A[Y*W+X]; if(!v) continue; const d=Math.hypot(X-x,Y-y); if(d<=r) put(v,d,null); } }
+  return [...best.values()].sort((a,b)=>a.score-b.score).slice(0,6);
+}
+function applyCand(){
+  const c=cands[candIdx]; if(!c){selPin=null; select(0); return;}
+  selPin=c.pin; select(c.net,false,true);
+}
+function pick(px,py){
+  const [x,y]=toImg(px,py);
+  const again=lastTap && lastTap.face===face && Math.hypot(px-lastTap.px,py-lastTap.py)<=SAME_SPOT && cands.length>1 && sel===cands[candIdx].net;
+  if(again){ candIdx=(candIdx+1)%cands.length; }
+  else { cands=candidates(x,y); candIdx=0; }
+  lastTap={px,py,face}; tapMark=[x,y,FINGER/s];
+  applyCand();
+}
+
+function select(k,example,keepPin){
+  if(!keepPin) selPin=null;
+  sel=k; isExample=!!example && k>0; buildOverlay(); draw(); info();
+}
+function info(){
+  const T=$('s-title'),f=$('s-facts'),n=$('s-note');
+  $('a-frame').hidden=$('a-clear').hidden=!sel;
+  if(!sel){$('s-pins').hidden=$('s-cand').hidden=true; T.textContent=t('tapPrompt');f.textContent='';n.textContent=t('holdHint');n.className='note';return;}
+  const m=B.nets[sel], pt=m[4], pb=m[5], nh=m[6], tot=pt+pb;
+  const hs=B.holes.filter(h=>h[4]===sel), vias=hs.filter(h=>h[2]<B.viaR).length, pins=hs.length-vias;
+  const cms=B.pads.filter(p=>p[5]===sel).length;
+  const own=labels&&selPin&&selPin[6]!=null?[selPin[6],selPin[7]]:null, op=own&&PARTS[own[0]], opin=own&&op.pins[own[1]];
+  const tag=(c,txt)=>{const e=document.createElement('span'); e.className='tag '+c; e.textContent=txt; return e;};
+  const pname=P=>{const nm=td(P.name); return nm.startsWith(P.ref)?nm:P.ref+' '+nm;}; // le repère d'abord : c'est lui qu'on cherche sur la carte (4 × LS273…)
+  T.textContent=own?t('pinTitle',pname(op),opin[4],td(opin[5])):'Net '+sel+' ';
+  if(pt) T.append(tag('top',t('tagTop'))); if(pb) T.append(' ',tag('bot',t('tagBot')));
+  if(isExample) T.append(' ',tag('ex',t('tagEx')));
+  if(selPin&&!own) T.append(' ',tag('ex',t('fromPin',selPin[3]==='th')));
+  f.textContent=(own?'Net '+sel+' · ':'')+t('facts',cms,pins,vias);
+  // autres broches de composants sur ce net
+  const sp=$('s-pins'), others=(labels&&PINS_BY_NET.get(sel)||[]).filter(([pi,k])=>!own||pi!==own[0]||k!==own[1]);
+  sp.hidden=!others.length; sp.textContent='';
+  if(others.length){
+    sp.append(t(own?'linked':'pinsOn'));
+    others.slice(0,12).forEach(([pi,k],i)=>{ const P=PARTS[pi], p=P.pins[k], b=document.createElement('b');
+      b.textContent=td(p[5]); sp.append(i?' · ':'', pname(P)+' '+p[4]+' ', b); });
+    if(others.length>12) sp.append(' · … +'+(others.length-12));
+  }
+  let msg='', warn=false;
+  if(tot>28000){msg=t('msgPlane');}
+  else if(nh===1 && vias===1){msg=t('msgVia');warn=true;}
+  else if(nh===0){msg=t('msgNoHole');}
+  else if(!(pt&&pb)){msg=t('msgOneSide');}
+  else msg=t('msgOther');
+  n.textContent=msg; n.className='note'+(warn?' warn':'');
+  const cl=$('s-cand');
+  if(cands.length>1 && cands[candIdx] && cands[candIdx].net===sel){
+    cl.hidden=false;
+    cl.textContent=t('cand',candIdx+1,cands.length);
+  } else cl.hidden=true;
+}
+
+function syncUI(){
+  $('f-top').setAttribute('aria-pressed',face==='top'); $('f-bot').setAttribute('aria-pressed',face==='bot');
+  $('b-draw').setAttribute('aria-pressed',bg==='draw'); $('b-photo').setAttribute('aria-pressed',bg==='photo');
+  $('t-mir').setAttribute('aria-pressed',mirror); $('t-mir').hidden=face!=='bot';
+  $('t-lbl').setAttribute('aria-pressed',labels);
+}
+function setFace(f){
+  if(f===face) return;
+  const r=stage.getBoundingClientRect(); const [cx,cy]=toImg(r.width/2,r.height/2);
+  face=f; let X=cx; if(mx()) X=W-cx; tx=r.width/2-X*s; ty=r.height/2-cy*s;
+  buildOverlay(); syncUI(); draw();
+}
+$('f-top').onclick=()=>setFace('top'); $('f-bot').onclick=()=>setFace('bot');
+$('b-draw').onclick=()=>{bg='draw';save();syncUI();draw();}; $('b-photo').onclick=()=>{bg='photo';save();syncUI();draw();};
+$('t-mir').onclick=()=>{const r=stage.getBoundingClientRect();const [cx,cy]=toImg(r.width/2,r.height/2);mirror=!mirror;save();let X=mx()?W-cx:cx;tx=r.width/2-X*s;syncUI();draw();};
+$('t-lbl').onclick=()=>{labels=!labels;save();syncUI();info();draw();};
+$('t-fit').onclick=()=>{fit(); buildOverlay(); draw();};
+function zoomAt(px,py,k){const ns=Math.min(Math.max(s*k,0.15),24);tx=px-(px-tx)*ns/s;ty=py-(py-ty)*ns/s;const was=s<1.2;s=ns;if((s<1.2)!==was)buildOverlay();draw();}
+$('t-in').onclick=()=>{const r=stage.getBoundingClientRect();zoomAt(r.width/2,r.height/2,1.6)};
+$('t-out').onclick=()=>{const r=stage.getBoundingClientRect();zoomAt(r.width/2,r.height/2,1/1.6)};
+$('a-clear').onclick=()=>{cands=[];tapMark=null;lastTap=null;select(0);};
+$('a-frame').onclick=()=>{const n=B.nets[sel];fitBox(n[0],n[1],n[2],n[3]);buildOverlay();draw();};
+
+// gestes : glisser, pincer, toucher (coordonnées toujours relatives à la zone de la carte)
+const pts=new Map(); let down=null, pinch=null;
+function pos(e){const r=stage.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top};}
+stage.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.tools')) return;
+  const p=pos(e); stage.setPointerCapture(e.pointerId); pts.set(e.pointerId,p);
+  if(pts.size===1){
+    down={x:p.x,y:p.y,t:performance.now(),moved:false,tx,ty};
+    clearTimeout(holdTimer);
+    holdTimer=setTimeout(()=>{ if(down&&!down.moved&&pts.size===1&&B){ aim={x:down.x,y:down.y}; aimUpdate(); draw(); } },320);
+  }
+  if(pts.size===2){clearTimeout(holdTimer);aim=null;const [a,b]=[...pts.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),s,tx,ty,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};if(down)down.moved=true;}
+});
+stage.addEventListener('contextmenu',e=>e.preventDefault());
+stage.addEventListener('pointermove',e=>{
+  if(!pts.has(e.pointerId)) return; const p=pos(e); pts.set(e.pointerId,p);
+  if(aim&&pts.size===1){ aim={x:p.x,y:p.y}; aimUpdate(); draw(); return; }
+  if(pts.size===2&&pinch){
+    const [a,b]=[...pts.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); const cx=(a.x+b.x)/2, cy=(a.y+b.y)/2;
+    const ns=Math.min(Math.max(pinch.s*d/pinch.d,0.15),24);
+    tx=cx-(pinch.cx-pinch.tx)*ns/pinch.s; ty=cy-(pinch.cy-pinch.ty)*ns/pinch.s; s=ns; draw();
+  } else if(pts.size===1&&down){
+    const dx=p.x-down.x, dy=p.y-down.y;
+    if(Math.hypot(dx,dy)>10){ down.moved=true; clearTimeout(holdTimer); }
+    if(down.moved){tx=down.tx+dx;ty=down.ty+dy;draw();}
+  }
+});
+function up(e){
+  if(!pts.has(e.pointerId)) return; pts.delete(e.pointerId); clearTimeout(holdTimer);
+  if(aim){ // relâché dans la loupe : sélection au point visé
+    const c=(e.type==='pointerup')?aimCand:null; aim=null; aimCand=null; down=null;
+    const [ix,iy]=toImg(pos(e).x,pos(e).y);
+    if(c){ cands=[c]; candIdx=0; lastTap=null; tapMark=null; applyCand(); } else draw();
+    return;
+  }
+  if(pinch&&pts.size<2){pinch=null;buildOverlay();draw();down=null;return;}
+  if(down&&pts.size===0){
+    // le toucher compte là où le doigt s'est posé, pas là où il s'est relevé
+    if(!down.moved&&e.type==='pointerup'&&performance.now()-down.t<700) pick(down.x,down.y);
+    down=null;
+  }
+}
+stage.addEventListener('pointerup',up); stage.addEventListener('pointercancel',up);
+stage.addEventListener('wheel',e=>{e.preventDefault();const p=pos(e);zoomAt(p.x,p.y,Math.exp(-e.deltaY*0.0015));},{passive:false});
+// Bandeau du bas redimensionnable : la poignée se glisse (doigt, souris) ; un toucher sans glisser le replie sur
+// le titre ou le rouvre ; flèches haut/bas au clavier. La carte reste visible sur au moins SHEET_MAP px.
+const sheet=$('sheet'), grip=$('s-grip'), SHEET_MAP=120;
+function sheetMin(){ // replié : poignée + titre, rien de coupé en dessous
+  const tb=$('s-title').getBoundingClientRect(), sh=sheet.getBoundingClientRect();
+  return tb.bottom-sh.top+sheet.scrollTop+6;
+}
+function sheetMax(){return Math.max(sheetMin(),window.innerHeight-document.querySelector('.bar').offsetHeight-SHEET_MAP);}
+function setSheet(h,keep){
+  sheetH=h==null?null:Math.round(Math.min(Math.max(h,sheetMin()),sheetMax()));
+  sheet.style.height=sheetH==null?'':sheetH+'px';
+  grip.setAttribute('aria-valuemin',Math.round(sheetMin())); grip.setAttribute('aria-valuemax',Math.round(sheetMax()));
+  grip.setAttribute('aria-valuenow',Math.round(sheet.getBoundingClientRect().height));
+  if(!keep) save();
+}
+let gripDrag=null, sheetOpen=null; // sheetOpen : hauteur à retrouver quand on rouvre un bandeau replié
+grip.addEventListener('pointerdown',e=>{
+  grip.setPointerCapture(e.pointerId); grip.classList.add('drag');
+  gripDrag={y:e.clientY,h:sheet.getBoundingClientRect().height,moved:false};
+});
+grip.addEventListener('pointermove',e=>{
+  if(!gripDrag) return; const dy=e.clientY-gripDrag.y;
+  if(Math.abs(dy)>4) gripDrag.moved=true;
+  if(gripDrag.moved) setSheet(gripDrag.h-dy,true);
+});
+function gripEnd(e){
+  if(!gripDrag) return; grip.classList.remove('drag');
+  if(!gripDrag.moved&&e.type==='pointerup') toggleSheet(); else save();
+  gripDrag=null;
+}
+grip.addEventListener('pointerup',gripEnd); grip.addEventListener('pointercancel',gripEnd);
+function toggleSheet(){
+  const h=sheet.getBoundingClientRect().height, min=sheetMin();
+  if(h>min+4){ sheetOpen=sheetH; setSheet(min); } else setSheet(sheetOpen);
+}
+grip.addEventListener('keydown',e=>{
+  const h=sheet.getBoundingClientRect().height, step=e.shiftKey?96:24;
+  if(e.key==='ArrowUp') setSheet(h+step); else if(e.key==='ArrowDown') setSheet(h-step);
+  else if(e.key==='Home') setSheet(sheetMin()); else if(e.key==='End') setSheet(sheetMax());
+  else if(e.key==='Enter'||e.key===' ') toggleSheet(); else return;
+  e.preventDefault();
+});
+grip.addEventListener('dblclick',()=>{ sheetOpen=null; setSheet(null); }); // double-clic : hauteur automatique
+window.addEventListener('resize',()=>{ if(sheetH!=null) setSheet(sheetH,true); });
+if(sheetH!=null) setSheet(sheetH,true);
+
+// La zone de la carte change de taille sans que la fenêtre bouge (la fiche du bas grandit selon le net) :
+// sans ce suivi, le canvas restait étiré et l'image ne correspondait plus aux touchers.
+new ResizeObserver(resize).observe(stage);
+start().catch(err=>{
+  if(!BOARD_PARAM&&lastBoard){try{localStorage.removeItem('pcbnet-board')}catch(e){}} // ne pas rester bloqué sur une carte disparue
+  const pick=['otherBoard',openBoards];
+  if(err===OFFLINE) loadingMsg('offline',[],[pick]);
+  else loadingMsg('loadErr',[err],[['seeFiles',()=>$('b-data').click()],pick]);
+});
+
+// Menu de langue : bascule immédiate, sans recharger la carte
+const mLang=$('m-lang'), bLang=$('b-lang');
+function langMenu(open){ mLang.hidden=!open; bLang.setAttribute('aria-expanded',open); if(open) mLang.querySelector('[aria-checked="true"]').focus(); }
+bLang.onclick=e=>{ e.stopPropagation(); langMenu(mLang.hidden); };
+document.addEventListener('click',e=>{ if(!mLang.hidden&&!e.target.closest('.lang')) langMenu(false); });
+mLang.addEventListener('keydown',e=>{
+  const items=[...mLang.querySelectorAll('button')], i=items.indexOf(document.activeElement);
+  if(e.key==='Escape'){ langMenu(false); bLang.focus(); }
+  else if(e.key==='ArrowDown'||e.key==='ArrowUp'){ items[(i+(e.key==='ArrowDown'?1:items.length-1))%items.length].focus(); e.preventDefault(); }
+});
+for(const b of mLang.querySelectorAll('[data-lang]')) b.onclick=()=>{ setLang(b.dataset.lang); langMenu(false); bLang.focus(); };
+function setLang(l){
+  if(l===lang) return; lang=l; save(); applyStatic();
+  if(B&&img.top){ showCredit(); info(); draw(); }
+  updateDataDot();
+  if(dlg.open) renderData();
+  if(dlgB.open) openBoards();
+  if(lastLoading&&!$('loading').hidden) loadingMsg(...lastLoading);
+  if(grip) setSheet(sheetH,true);
+}
+applyStatic();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>

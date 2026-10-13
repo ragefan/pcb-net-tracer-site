@@ -1,0 +1,22 @@
+PCB Net Tracer 1.2.0 (2026-10-13)
+=================================
+
+FR — Touchez une pin sur l'image d'une carte double face : le net complet s'affiche sur les deux faces.
+
+Hébergement : copier le contenu de cette archive sur n'importe quel serveur web statique en HTTPS, puis ouvrir
+l'adresse du dossier (index.html redirige vers viewer/). Le HTTPS est nécessaire pour installer l'application et
+l'utiliser hors-ligne. Essai local : `python3 -m http.server` dans ce dossier, puis http://localhost:8000/
+Le bouton « Données » de l'application vérifie que les fichiers de chaque carte sont complets et cohérents.
+
+EN — Tap a pin on the picture of a double-sided board: the whole net is shown on both sides.
+
+Hosting: copy this archive's content to any static web server over HTTPS and open the folder's address
+(index.html redirects to viewer/). HTTPS is required to install the app and use it offline. Local test:
+`python3 -m http.server` in this folder, then http://localhost:8000/
+The app's “Data” button checks that each board's files are complete and consistent.
+
+Crédits / Credits
+  Relevés du cuivre / copper layouts :
+  - Neo Geo MV1FZS (NEO-MVH) — Relevé du cuivre : GI@NTS 2015
+  Polices / fonts : IBM Plex (SIL Open Font License 1.1, viewer/fonts/OFL.txt)
+  Brochages / pinouts : neogeodev/SVGPinout et NeoGeo Development Wiki, fiches constructeurs
