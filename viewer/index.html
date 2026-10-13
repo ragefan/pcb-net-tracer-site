@@ -84,14 +84,18 @@ canvas{display:block;width:100%;height:100%}
 .disclaim{font-size:12px;color:var(--muted);margin:0;line-height:1.35}
 @media (max-width:520px){.brand small{display:none}.legend{margin-left:0}
   /* version sur deux lignes, à droite des boutons Dessus/Pistes, pour ne pas ajouter de ligne à la barre */
-  .app-ver{display:inline-flex;flex-direction:column;align-items:flex-end;margin-left:auto;line-height:1.25}
+  /* mobile : « v1.4.0 · Ragefan » puis la date */
+  .app-ver{display:inline-grid;grid-template-columns:auto auto;justify-items:end;margin-left:auto;line-height:1.25}
+  .app-ver .v{grid-area:1/1} .app-ver .a{grid-area:1/2} .app-ver .d{grid-area:2/1/3/3}
+  .app-ver .a .by{display:none} .bar .app-ver .a::before{content:"\00a0· "}
   .bar .app-ver .d::before{content:none}}
 [hidden]{display:none!important}
 /* contrôle des fichiers de la carte */
 .data-btn{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--line);border-radius:7px;
   padding:6px 10px;min-height:34px;cursor:pointer;font-size:14px;color:var(--muted)}
 .app-ver{font-family:var(--f-data);font-size:11px;color:var(--muted);white-space:nowrap;cursor:default}
-.app-ver .d::before{content:" · "}
+.app-ver .d::before,.app-ver .a::before{content:" · "}
+.app-ver .a{color:var(--ink)}
 .data-btn:focus-visible{outline:2px solid var(--solder);outline-offset:1px}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
 .dot.ok{background:var(--ok)} .dot.ko{background:var(--ko);box-shadow:0 0 0 3px color-mix(in srgb,var(--ko) 30%,transparent)}
@@ -124,6 +128,33 @@ dialog.panel h2{margin:0 0 2px;font-size:17px}
 .bcard img{width:96px;height:72px;object-fit:cover;border-radius:5px;background:var(--bench)}
 .bcard .t{font-weight:600} .bcard .m{font-family:var(--f-data);font-size:12px;color:var(--muted);margin-top:2px}
 .bcard .row{margin-top:5px}
+/* signaux des composants */
+#dlg-sig{width:min(880px,calc(100vw - 24px));height:min(85vh,900px);padding-top:0;display:none;flex-direction:column}
+#dlg-sig[open]{display:flex}
+.ds-head{position:sticky;top:0;z-index:1;background:var(--panel);padding:14px 0 8px;border-bottom:1px solid var(--line)}
+.ds-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.ds-ctl input,.ds-ctl select{font:inherit;font-size:14px;color:var(--ink);background:var(--bench);border:1px solid var(--line);
+  border-radius:7px;padding:6px 9px;min-height:34px;box-sizing:border-box}
+.ds-ctl input{flex:1 1 220px;min-width:0} .ds-ctl select{flex:0 1 230px;min-width:0;max-width:100%}
+.ds-ctl input:focus-visible,.ds-ctl select:focus-visible{outline:2px solid var(--solder);outline-offset:1px}
+#ds-list{flex:1;overflow-y:auto;overscroll-behavior:contain;margin:0 -16px;padding:0 16px}
+.ds-grp{position:sticky;top:0;background:var(--panel);padding:10px 0 5px;font-weight:600;border-bottom:1px solid var(--line);
+  display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.ds-grp small{font-family:var(--f-data);font-size:11px;font-weight:400;color:var(--muted)}
+.srow{display:grid;grid-template-columns:minmax(64px,auto) 112px 1fr;gap:2px 12px;width:100%;padding:7px 4px;background:transparent;
+  border:0;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);color:inherit;font:inherit;text-align:left;cursor:pointer;align-items:baseline}
+.srow.by-sig{grid-template-columns:112px minmax(120px,190px) 1fr}
+.srow:hover,.srow:focus-visible{background:color-mix(in srgb,var(--line) 55%,transparent);outline:none}
+.srow .n{font-family:var(--f-data);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.srow .s{font-family:var(--f-data);font-size:13px;font-weight:500;color:var(--solder);word-break:break-word}
+.srow .c{font-size:13px} .srow .c small{display:block;font-family:var(--f-data);font-size:11px;color:var(--muted)}
+.srow .d{font-size:14px;line-height:1.35} .srow .d.none{color:var(--muted);font-style:italic}
+.srow .f{display:block;font-size:12px;color:var(--warn);margin-top:2px}
+#ds-empty{color:var(--muted);padding:16px 0}
+@media (max-width:620px){
+  .srow,.srow.by-sig{grid-template-columns:auto 1fr} .srow .d{grid-column:1/3}
+}
+.note.desc{color:var(--ink)} .note.desc .f{display:block;font-size:12px;color:var(--warn);margin-top:2px}
 html{padding:env(safe-area-inset-top,0px) 0 0}
 body{margin:0}
 </style>
@@ -133,6 +164,7 @@ body{margin:0}
 <div class="bar">
   <div class="brand"><button class="board-btn" id="b-board" aria-haspopup="dialog" data-i18n-title="boardBtn"><span id="b-name">PCB Net Tracer</span><span class="chev" aria-hidden="true">▾</span></button> <small id="b-credit"></small></div>
   <button class="data-btn" id="b-data" aria-haspopup="dialog" data-i18n-title="dataBtnTitle"><i class="dot" id="b-dot"></i><span data-i18n="dataBtn">Données</span></button>
+  <button class="data-btn" id="b-sig" aria-haspopup="dialog" data-i18n-title="sigBtnTitle" hidden><span aria-hidden="true">≡</span><span data-i18n="sigBtn">Signaux</span></button>
   <div class="lang">
     <button class="data-btn" id="b-lang" aria-haspopup="menu" aria-expanded="false" aria-controls="m-lang" data-i18n-title="langBtn"><span aria-hidden="true">🌐</span><span id="b-lang-cur">FR</span><span class="chev" aria-hidden="true">▾</span></button>
     <div class="menu" id="m-lang" role="menu" hidden>
@@ -168,6 +200,7 @@ body{margin:0}
        data-i18n-aria="gripAria" data-i18n-title="gripTitle"><span></span></div>
   <h2 id="s-title" data-i18n="tapPrompt">Touchez une pin ou une piste</h2>
   <div class="facts" id="s-facts"></div>
+  <p class="note desc" id="s-desc" hidden></p>
   <p class="note" id="s-note"></p>
   <p class="note pins" id="s-pins" hidden></p>
   <p class="note cand" id="s-cand" hidden></p>
@@ -185,6 +218,24 @@ body{margin:0}
   <div id="db-list"></div>
   <p class="disclaim" style="margin:10px 0" data-i18n-html="dbNote"></p>
   <div class="row"><button class="act" id="db-close" data-i18n="close">Fermer</button></div>
+</dialog>
+
+<dialog class="panel" id="dlg-sig" aria-labelledby="ds-title">
+  <div class="ds-head">
+    <h2 id="ds-title" data-i18n="dsTitle">Signaux des composants</h2>
+    <div class="facts" id="ds-sub"></div>
+    <div class="ds-ctl">
+      <input type="search" id="ds-q" autocomplete="off" spellcheck="false" data-i18n-ph="dsFilter" data-i18n-aria="dsFilter">
+      <select id="ds-part" data-i18n-aria="dsPart"></select>
+      <div class="seg" role="group" data-i18n-aria="dsSort">
+        <button id="ds-by-part" aria-pressed="true" data-i18n="byPart">Par composant</button>
+        <button id="ds-by-sig" aria-pressed="false" data-i18n="bySig">Par signal</button>
+      </div>
+    </div>
+  </div>
+  <div id="ds-list" tabindex="-1" autofocus></div>
+  <p class="disclaim" style="margin:10px 0" data-i18n="dsNote"></p>
+  <div class="row"><button class="act" id="ds-close" data-i18n="close">Fermer</button></div>
 </dialog>
 
 <dialog class="panel" id="dlg-data" aria-labelledby="dd-title">
@@ -248,7 +299,15 @@ fr:{
   choose:'Choisis une carte.', noBoard:'Aucune carte disponible : construis-en une avec le pipeline (README, « Ajouter une carte »).',
   offline:'Carte indisponible hors-ligne : ouvre-la une fois avec le réseau pour la garder sur l’appareil.',
   loadErr:e=>`Impossible de charger la carte (${e}). Recharge la page.`, seeFiles:'Voir les fichiers', otherBoard:'Choisir une autre carte',
-  verTitle:'Version de l’outil PCB Net Tracer et date de génération',
+  verTitle:'Version de l’outil PCB Net Tracer et date de génération · outil pensé par Ragefan', by:'pensé par ',
+  sigBtn:'Signaux', sigBtnTitle:'Description des signaux des composants',
+  dsTitle:'Signaux des composants', dsFilter:'Filtrer : signal, composant, description…', dsPart:'Composant', dsAll:'Tous les composants',
+  dsSort:'Trier', byPart:'Par composant', bySig:'Par signal',
+  dsCount:(n,m,p)=>n===m?`${m} signaux · ${p} composant${p>1?'s':''}`:`${n} signal${n>1?'s':''} sur ${m}`,
+  dsNone:'Aucun signal ne correspond au filtre.', dsNoDesc:'Pas de description pour ce signal.',
+  dsOld:'Cette carte a été construite sans descriptions : reconstruis-la avec le pipeline à jour.',
+  dsNote:'Descriptions simplifiées d’après le wiki NeoGeo Dev et les fiches constructeurs (pinouts/signaux.csv). Touche une ligne pour voir la broche sur la carte.',
+  fault:'En cas de panne : ', pinsN:n=>n>1?'broches ':'broche ', faceTop:'dessus', faceBot:'dessous', faceTh:'traversant',
   ddVer:(v,bv)=>`Outil v${v} · carte générée par le pipeline `+(bv?`v${bv}`:'d’une version antérieure à 1.0.0'),
 },
 en:{
@@ -295,20 +354,31 @@ en:{
   choose:'Choose a board.', noBoard:'No board available: build one with the pipeline (README, “Adding a board”).',
   offline:'Board unavailable offline: open it once while online to keep it on this device.',
   loadErr:e=>`Unable to load the board (${e}). Reload the page.`, seeFiles:'Show files', otherBoard:'Choose another board',
-  verTitle:'PCB Net Tracer tool version and build date',
+  verTitle:'PCB Net Tracer tool version and build date · tool designed by Ragefan', by:'designed by ',
+  sigBtn:'Signals', sigBtnTitle:'Component signal descriptions',
+  dsTitle:'Component signals', dsFilter:'Filter: signal, component, description…', dsPart:'Component', dsAll:'All components',
+  dsSort:'Sort', byPart:'By component', bySig:'By signal',
+  dsCount:(n,m,p)=>n===m?`${m} signals · ${p} component${p!==1?'s':''}`:`${n} signal${n!==1?'s':''} of ${m}`,
+  dsNone:'No signal matches the filter.', dsNoDesc:'No description for this signal.',
+  dsOld:'This board was built without descriptions: rebuild it with the up-to-date pipeline.',
+  dsNote:'Simplified descriptions based on the NeoGeo Dev wiki and manufacturer datasheets (pinouts/signaux.csv). Tap a row to see the pin on the board.',
+  fault:'If faulty: ', pinsN:n=>n!==1?'pins ':'pin ', faceTop:'top', faceBot:'bottom', faceTh:'through-hole',
   ddVer:(v,bv)=>`Tool v${v} · board generated by pipeline `+(bv?`v${bv}`:'older than 1.0.0'),
 }};
 const APP=self.PCBNET_VERSION||{version:'?',date:''}; // viewer/version.js
+const APP_AUTHOR='Ragefan'; // auteur de l'outil, affiché dans la barre
 // Termes français des données (board.json : noms de composants, broches JAMMA, crédit) traduits pour l'anglais
 const DATA_EN={'RAM 68k':'68k RAM','RAM sauvegarde':'Backup RAM','VRAM rapide':'Fast VRAM','RAM palette':'Palette RAM','RAM Z80':'Z80 RAM',
   'JAMMA composants':'JAMMA component side','JAMMA soudure':'JAMMA solder side','Détrompeur':'Key','HP +':'Speaker +','HP −':'Speaker −',
   'Rouge':'Red','Vert':'Green','Bleu':'Blue','Masse vidéo':'Video GND','Masse audio':'Audio GND','Synchro':'Sync','GND pré':'Pre GND',
-  'Filtre':'Ripple filter','Haut':'Up','Bas':'Down','Gauche':'Left','Droite':'Right','Pièce':'Coin','Compteur':'Coin counter','Blocage':'Coin lockout'};
+  'Filtre':'Ripple filter','Haut':'Up','Bas':'Down','Gauche':'Left','Droite':'Right','Pièce':'Coin','Compteur':'Coin counter','Blocage':'Coin lockout',
+  'Slot CHA':'CHA slot','Slot PROG':'PROG slot','Carte mémoire':'Memory card','Prise A/V':'A/V socket','Alimentation':'Power',
+  'Masse A/V':'A/V ground','Blindage':'Shield','Manette':'Joypad'};
 function td(s){ // traduit un terme de données (français dans les fichiers) pour l'interface anglaise
   if(lang!=='en'||typeof s!=='string') return s;
   if(DATA_EN[s]) return DATA_EN[s];
   let m=s.match(/^J([12]) (.+)$/); if(m) return 'P'+m[1]+' '+(DATA_EN[m[2]]||m[2]);
-  m=s.match(/^(Pièce|Compteur|Blocage) (\d)$/); if(m) return DATA_EN[m[1]]+' '+m[2];
+  m=s.match(/^(Pièce|Compteur|Blocage|Manette) (\d)$/); if(m) return DATA_EN[m[1]]+' '+m[2];
   return s.replace(/^Relevé du cuivre\s*:\s*/,'Copper layout: ').replace(/^Relevé synthétique/,'Synthetic layout')
     .replace(/^Recréation KiCad et scans\s*:\s*/,'KiCad recreation and scans: ').replace('(domaine public)','(public domain)');
 }
@@ -322,10 +392,12 @@ function applyStatic(){ // textes de la page marqués data-i18n / -title / -aria
   for(const e of document.querySelectorAll('[data-i18n-html]')) e.innerHTML=t(e.dataset.i18nHtml); // textes du dictionnaire uniquement
   for(const e of document.querySelectorAll('[data-i18n-title]')) e.title=t(e.dataset.i18nTitle);
   for(const e of document.querySelectorAll('[data-i18n-aria]')) e.setAttribute('aria-label',t(e.dataset.i18nAria));
+  for(const e of document.querySelectorAll('[data-i18n-ph]')) e.placeholder=t(e.dataset.i18nPh);
   $('b-lang-cur').textContent=lang.toUpperCase();
   const bv=$('b-ver'), sp=(c,txt)=>{const e=document.createElement('span'); e.className=c; e.textContent=txt; return e;};
   bv.replaceChildren(sp('v','v'+APP.version));
   if(APP.date) bv.append(sp('d',new Date(APP.date+'T12:00:00').toLocaleDateString(lang,{day:'numeric',month:'short',year:'numeric'})));
+  const au=sp('a',''); au.append(sp('by',t('by')),APP_AUTHOR); bv.append(au); // « pensé par Ragefan » (mobile : « Ragefan »)
   for(const b of document.querySelectorAll('#m-lang [data-lang]')) b.setAttribute('aria-checked',b.dataset.lang===lang);
 }
 // Dossier des données produites par pipeline/pcbnet.py ; surchargeable par ?board=chemin.
@@ -341,11 +413,11 @@ let B=null, W=0, H=0;
 const img={}; const map={top:null,bot:null};
 let face='top', bg='draw', mirror=false, labels=true, sheetH=null; // sheetH : hauteur choisie du bandeau (null = auto)
 let PARTS=[], FONT_UI='sans-serif', FONT_DATA='monospace'; const PINS_BY_NET=new Map(); // composants (board.json "parts") et leurs broches par net
-let sel=0, isExample=false, overlay=null, oCtx=null, selPin=null;
+let sel=0, isExample=false, overlay=null, oCtx=null, selPin=null, sigSort='part'; // sigSort : tri du menu Signaux
 let s=1, tx=0, ty=0; // écran = s*img + t (img x éventuellement miroir)
 // préférences (l'ancienne clé « mv1fzs » est reprise)
-try{const p=JSON.parse(localStorage.getItem('pcbnet-prefs')||localStorage.getItem('mv1fzs')||'{}'); if(p.bg) bg=p.bg; if(p.mirror) mirror=!!p.mirror; if(p.labels===false) labels=false; if(p.sheetH>0) sheetH=p.sheetH;}catch(e){}
-function save(){try{localStorage.setItem('pcbnet-prefs',JSON.stringify({bg,mirror,labels,sheetH,lang}))}catch(e){}}
+try{const p=JSON.parse(localStorage.getItem('pcbnet-prefs')||localStorage.getItem('mv1fzs')||'{}'); if(p.bg) bg=p.bg; if(p.mirror) mirror=!!p.mirror; if(p.labels===false) labels=false; if(p.sheetH>0) sheetH=p.sheetH; if(p.sigSort==='sig') sigSort='sig';}catch(e){}
+function save(){try{localStorage.setItem('pcbnet-prefs',JSON.stringify({bg,mirror,labels,sheetH,lang,sigSort}))}catch(e){}}
 
 // --- Intégrité : chaque image est lue en octets ; son CRC32, sa taille et ses dimensions sont comparés aux valeurs
 // que le pipeline a écrites dans board.json (files). Ce sont donc exactement les fichiers affichés qui sont vérifiés.
@@ -545,10 +617,17 @@ function prepParts(){
   });
   PINS_BY_NET.clear();
   PARTS.forEach((P,pi)=>P.pins.forEach((p,k)=>{ if(!p[6]) return; if(!PINS_BY_NET.has(p[6])) PINS_BY_NET.set(p[6],[]); PINS_BY_NET.get(p[6]).push([pi,k]); }));
-  $('t-lbl').hidden=!PARTS.length;
+  $('t-lbl').hidden=$('b-sig').hidden=!PARTS.length;
   const cs=getComputedStyle(document.body); FONT_UI=cs.getPropertyValue('--f-ui'); FONT_DATA=cs.getPropertyValue('--f-data');
 }
 const partOn=P=>P.th||P.face===(face==='top'?0:1); // traversant : visible des deux faces
+// Description d'une broche (board.json « signals », 9e valeur des broches) dans la langue de l'interface :
+// [fr, en, panne fr, panne en] ; repli sur le français si la traduction manque. -> {d, f} ou null
+function pinDesc(p){
+  const r=B&&B.signals&&p[8]!=null?B.signals[p[8]]:null; if(!r) return null;
+  const en=lang==='en';
+  return {d:(en&&r[1])||r[0]||'', f:(en&&r[3])||r[2]||''};
+}
 function boardTf(){const d=window.devicePixelRatio||1; ctx.setTransform(d*s*(mx()?-1:1),0,0,d*s,d*(tx+(mx()?W*s:0)),d*ty);}
 
 // Noms des composants et des broches, dessinés en coordonnées écran : le texte reste lisible en vue miroir.
@@ -755,18 +834,19 @@ function select(k,example,keepPin){
 function info(){
   const T=$('s-title'),f=$('s-facts'),n=$('s-note');
   $('a-frame').hidden=$('a-clear').hidden=!sel;
-  if(!sel){$('s-pins').hidden=$('s-cand').hidden=true; T.textContent=t('tapPrompt');f.textContent='';n.textContent=t('holdHint');n.className='note';return;}
+  if(!sel){$('s-pins').hidden=$('s-cand').hidden=$('s-desc').hidden=true; T.textContent=t('tapPrompt');f.textContent='';n.textContent=t('holdHint');n.className='note';return;}
   const m=B.nets[sel], pt=m[4], pb=m[5], nh=m[6], tot=pt+pb;
   const hs=B.holes.filter(h=>h[4]===sel), vias=hs.filter(h=>h[2]<B.viaR).length, pins=hs.length-vias;
   const cms=B.pads.filter(p=>p[5]===sel).length;
   const own=labels&&selPin&&selPin[6]!=null?[selPin[6],selPin[7]]:null, op=own&&PARTS[own[0]], opin=own&&op.pins[own[1]];
   const tag=(c,txt)=>{const e=document.createElement('span'); e.className='tag '+c; e.textContent=txt; return e;};
-  const pname=P=>{const nm=td(P.name); return nm.startsWith(P.ref)?nm:P.ref+' '+nm;}; // le repère d'abord : c'est lui qu'on cherche sur la carte (4 × LS273…)
   T.textContent=own?t('pinTitle',pname(op),opin[4],td(opin[5])):'Net '+sel+' ';
   if(pt) T.append(tag('top',t('tagTop'))); if(pb) T.append(' ',tag('bot',t('tagBot')));
   if(isExample) T.append(' ',tag('ex',t('tagEx')));
   if(selPin&&!own) T.append(' ',tag('ex',t('fromPin',selPin[3]==='th')));
   f.textContent=(own?'Net '+sel+' · ':'')+t('facts',cms,pins,vias);
+  const sd=$('s-desc'), ds=own&&pinDesc(opin); sd.hidden=!ds; sd.textContent='';
+  if(ds){ sd.append(ds.d); if(ds.f){ const e=document.createElement('span'); e.className='f'; e.textContent=t('fault')+ds.f; sd.append(e); } }
   // autres broches de composants sur ce net
   const sp=$('s-pins'), others=(labels&&PINS_BY_NET.get(sel)||[]).filter(([pi,k])=>!own||pi!==own[0]||k!==own[1]);
   sp.hidden=!others.length; sp.textContent='';
@@ -789,6 +869,82 @@ function info(){
     cl.textContent=t('cand',candIdx+1,cands.length);
   } else cl.hidden=true;
 }
+
+// --- Signaux des composants : une ligne par signal et par composant (broches de même nom regroupées),
+// triée par composant ou par signal, filtrable ; toucher une ligne montre la broche sur la carte.
+const dlgS=$('dlg-sig');
+let SIG_ROWS=null;
+const plain=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+function sigRows(){
+  if(SIG_ROWS) return SIG_ROWS;
+  SIG_ROWS=[];
+  PARTS.forEach((P,pi)=>{ const by=new Map();
+    P.pins.forEach((p,k)=>{ const key=String(p[5]); if(!by.has(key)){ const r={pi,k,name:key,nums:[]}; by.set(key,r); SIG_ROWS.push(r); } by.get(key).nums.push(p[4]); });
+  });
+  return SIG_ROWS;
+}
+const coll=()=>new Intl.Collator(lang,{numeric:true,sensitivity:'base'});
+const pname=P=>{const nm=td(P.name); return nm.startsWith(P.ref)?nm:P.ref+' '+nm;}; // le repère d'abord (4 × LS273…)
+const faceName=P=>t(P.th?'faceTh':P.face?'faceBot':'faceTop');
+function renderSignals(){
+  const list=$('ds-list'), q=plain($('ds-q').value.trim()), part=$('ds-part').value, C=coll();
+  $('ds-by-part').setAttribute('aria-pressed',sigSort==='part'); $('ds-by-sig').setAttribute('aria-pressed',sigSort==='sig');
+  const all=sigRows(), rows=all.filter(r=>{
+    if(part!==''&&r.pi!==+part) return false;
+    if(!q) return true;
+    const P=PARTS[r.pi], d=pinDesc(P.pins[r.k]);
+    return plain([r.name,td(r.name),P.ref,td(P.name),P.chip,d?d.d:'',d?d.f:''].join(' ')).includes(q);
+  });
+  if(sigSort==='sig') rows.sort((a,b)=>C.compare(a.name,b.name)||C.compare(PARTS[a.pi].ref,PARTS[b.pi].ref));
+  else rows.sort((a,b)=>C.compare(PARTS[a.pi].ref,PARTS[b.pi].ref)||(a.pi-b.pi)||C.compare(String(a.nums[0]),String(b.nums[0])));
+  $('ds-sub').textContent=(B.name?B.name+' · ':'')+t('dsCount',rows.length,all.length,PARTS.length)+(B.signals?'':' · '+t('dsOld'));
+  list.textContent=''; const frag=document.createDocumentFragment(); let grp=-1;
+  const el=(tag,c,txt,parent)=>{const e=document.createElement(tag); if(c) e.className=c; if(txt!=null) e.textContent=txt; parent.append(e); return e;};
+  for(const r of rows){
+    const P=PARTS[r.pi], d=pinDesc(P.pins[r.k]);
+    if(sigSort==='part'&&r.pi!==grp){ grp=r.pi; const h=el('div','ds-grp',pname(P),frag);
+      el('small','',[P.chip&&P.chip!==P.name?P.chip:'',faceName(P),P.pins.length+' '+t('pinsN',P.pins.length).trim()].filter(Boolean).join(' · '),h); }
+    const b=el('button','srow'+(sigSort==='sig'?' by-sig':''),null,frag); b.type='button';
+    const nums=r.nums.length>6?r.nums.slice(0,6).join(', ')+'…':r.nums.join(', ');
+    if(sigSort==='sig'){ el('span','s',td(r.name),b); const c=el('span','c',pname(P),b); el('small','',t('pinsN',r.nums.length)+nums,c); }
+    else { el('span','n',nums,b); el('span','s',td(r.name),b); }
+    const dd=el('span','d'+(d?'':' none'),d?d.d:t('dsNoDesc'),b);
+    if(d&&d.f) el('span','f',t('fault')+d.f,dd);
+    b.onclick=()=>goPin(r.pi,r.k);
+  }
+  list.append(frag);
+  if(!rows.length) el('p','',t('dsNone'),list).id='ds-empty';
+}
+function openSignals(){
+  const sp=$('ds-part'), cur=sp.value; sp.textContent='';
+  const o0=document.createElement('option'); o0.value=''; o0.textContent=t('dsAll'); sp.append(o0);
+  const C=coll();
+  PARTS.map((P,i)=>[P,i]).sort((a,b)=>C.compare(a[0].ref,b[0].ref)||a[1]-b[1]).forEach(([P,i])=>{
+    const o=document.createElement('option'); o.value=i; o.textContent=pname(P)+(PARTS.some(Q=>Q!==P&&Q.ref===P.ref)?' ('+faceName(P)+')':''); sp.append(o); });
+  sp.value=[...sp.options].some(o=>o.value===cur)?cur:'';
+  renderSignals();
+  if(!dlgS.open){ dlgS.showModal();
+    // souris : la recherche prend le focus ; écran tactile : pas de clavier qui surgit à l'ouverture
+    if(matchMedia('(pointer: fine)').matches) $('ds-q').focus(); }
+}
+function goPin(pi,k){ // montre une broche choisie dans le menu Signaux : face, cadrage sur le composant, sélection du net
+  const P=PARTS[pi], p=P.pins[k];
+  dlgS.close();
+  if(!labels){ labels=true; save(); }
+  if(!P.th) setFace(P.face?'bot':'top');
+  cands=[]; candIdx=0; lastTap=null; tapMark=p[6]?null:[p[0],p[1]];
+  fitBox(P.x0,P.y0,P.x1,P.y1);
+  selPin=[p[0],p[1],Math.max(p[2],p[3])/2,P.th?'th':'cms',p[2],p[3],pi,k];
+  select(p[6]||0,false,true); syncUI();
+}
+let dsTimer=0;
+$('ds-q').addEventListener('input',()=>{ clearTimeout(dsTimer); dsTimer=setTimeout(renderSignals,120); });
+$('ds-part').onchange=renderSignals;
+$('ds-by-part').onclick=()=>{ sigSort='part'; save(); renderSignals(); };
+$('ds-by-sig').onclick=()=>{ sigSort='sig'; save(); renderSignals(); };
+$('b-sig').onclick=openSignals;
+$('ds-close').onclick=()=>dlgS.close();
+dlgS.addEventListener('click',e=>{ if(e.target===dlgS) dlgS.close(); });
 
 function syncUI(){
   $('f-top').setAttribute('aria-pressed',face==='top'); $('f-bot').setAttribute('aria-pressed',face==='bot');
@@ -930,6 +1086,7 @@ function setLang(l){
   updateDataDot();
   if(dlg.open) renderData();
   if(dlgB.open) openBoards();
+  if(dlgS.open) openSignals(); // descriptions, symptômes et tri dans la nouvelle langue
   if(lastLoading&&!$('loading').hidden) loadingMsg(...lastLoading);
   if(grip) setSheet(sheetH,true);
 }
