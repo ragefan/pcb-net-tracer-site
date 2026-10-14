@@ -128,6 +128,11 @@ dialog.panel h2{margin:0 0 2px;font-size:17px}
 .bcard img{width:96px;height:72px;object-fit:cover;border-radius:5px;background:var(--bench)}
 .bcard .t{font-weight:600} .bcard .m{font-family:var(--f-data);font-size:12px;color:var(--muted);margin-top:2px}
 .bcard .row{margin-top:5px}
+.bcard .rel{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;flex-wrap:wrap}
+.bcard .rel .gauge{flex:0 0 72px;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bcard .rel .gauge i{display:block;height:100%;background:currentColor}
+.bcard .rel b{font-weight:600} .bcard .rel small{font-family:var(--f-data);color:var(--muted)}
+.rel.hi{color:var(--ok)} .rel.mid{color:var(--solder)} .rel.lo{color:var(--warn)}
 /* signaux des composants */
 #dlg-sig{width:min(880px,calc(100vw - 24px));height:min(85vh,900px);padding-top:0;display:none;flex-direction:column}
 #dlg-sig[open]{display:flex}
@@ -203,11 +208,11 @@ body{margin:0}
     <button class="tool" id="t-mir" data-i18n-title="mirrorTitle" data-i18n-aria="mirror" aria-pressed="false">⇋</button>
     <button class="tool" id="t-lbl" data-i18n-title="labels" data-i18n-aria="labels" aria-pressed="true" hidden>IC</button>
   </div>
-  <button class="nl-badge" id="nl-badge" aria-expanded="false" aria-controls="nl-info" hidden><span aria-hidden="true">⚠</span><span data-i18n="nlBadge">Liaisons seules · pas de pistes</span></button>
+  <button class="nl-badge" id="nl-badge" aria-expanded="false" aria-controls="nl-info" hidden><span aria-hidden="true">⚠</span><span data-i18n="nlBadge" data-nl="nlBadge">Liaisons seules · pas de pistes</span></button>
   <div class="nl-info" id="nl-info" role="note" hidden>
-    <h3 data-i18n="nlTitle">Carte sans pistes : liaisons du schéma</h3>
-    <p data-i18n="nlText1"></p>
-    <ul><li data-i18n="nlLi1"></li><li data-i18n="nlLi2"></li><li data-i18n="nlLi3"></li></ul>
+    <h3 data-i18n="nlTitle" data-nl="nlTitle">Carte sans pistes : liaisons du schéma</h3>
+    <p data-i18n="nlText1" data-nl="nlText1"></p>
+    <ul><li data-i18n="nlLi1" data-nl="nlLi1"></li><li data-i18n="nlLi2" data-nl="nlLi2"></li><li data-i18n="nlLi3" data-nl="nlLi3"></li></ul>
     <div class="row"><button class="act" id="nl-ok" data-i18n="nlOk">Compris</button></div>
   </div>
   <div id="loading" data-i18n="loading">Chargement de la carte…</div>
@@ -225,10 +230,10 @@ body{margin:0}
   <div class="row">
     <button class="act" id="a-frame" hidden data-i18n="frame">Cadrer le net</button>
     <button class="act" id="a-clear" hidden data-i18n="clear">Effacer</button>
-    <div class="legend"><span><i style="background:var(--solder)"></i><span data-i18n="legShown">face affichée</span></span><span><i style="background:var(--probe)"></i><span data-i18n="legOther">autre face</span></span><span data-i18n="legSmd">▢ pin CMS</span><span data-i18n="legTh">◯ pin traversante / via</span><span class="nl-only" hidden><span class="nl-line"></span><span data-i18n="legLink">liaison du schéma (pas une piste)</span></span></div>
+    <div class="legend"><span><i style="background:var(--solder)"></i><span data-i18n="legShown">face affichée</span></span><span><i style="background:var(--probe)"></i><span data-i18n="legOther">autre face</span></span><span data-i18n="legSmd">▢ pin CMS</span><span data-i18n="legTh">◯ pin traversante / via</span><span class="nl-only" hidden><span class="nl-line"></span><span data-i18n="legLink" data-nl="legLink">liaison du schéma (pas une piste)</span></span></div>
   </div>
   <p class="disclaim cu-only"><span data-i18n="disc1">Tracé extrait automatiquement des relevés de cuivre</span><span id="s-credit"></span><span data-i18n="disc2">. Les couches internes n’y figurent pas. Confirme au multimètre avant de dessouder.</span></p>
-  <p class="disclaim nl-only" hidden><span data-i18n="discNl1">Liaisons transcrites des schémas, sans relevé de cuivre : le trajet des pistes n’est pas connu</span><span class="s-credit"></span><span data-i18n="discNl2">. Confirme au multimètre avant de dessouder.</span></p>
+  <p class="disclaim nl-only" hidden><span data-i18n="discNl1" data-nl="discNl1">Liaisons transcrites des schémas, sans relevé de cuivre : le trajet des pistes n’est pas connu</span><span class="s-credit"></span><span data-i18n="discNl2">. Confirme au multimètre avant de dessouder.</span></p>
 </div>
 
 <dialog class="panel" id="dlg-boards" aria-labelledby="db-title">
@@ -314,7 +319,9 @@ fr:{
   MB:' Mo', kB:' ko', role:r=>r,
   dbCount:n=>`${n} carte${n>1?'s':''} dans le catalogue`,
   dbMissing:'Catalogue introuvable (boards/index.json) : lance « python pipeline/pcbnet.py index » après avoir construit une carte.',
-  card:(p,n,v,b)=>`${p} composant${p>1?'s':''} · ${n} nets · version ${v} · ${b}`, tagShown:'affichée', tagOffline:'disponible hors-ligne',
+  card:(p,n,v,b)=>`${p} composant${p>1?'s':''} · ${n} nets · version ${v} · ${b}`,
+  relLabel:n=>`Fiabilité du mapping ${n}\u00a0%`, relDetail:(a,b)=>`pistes ${a}\u00a0% · broches ${b}\u00a0%`,
+  relTitle:'100 % = pistes et broches entièrement relevées. Moitié pistes relevées, moitié broches dont la liaison est connue.', tagShown:'affichée', tagOffline:'disponible hors-ligne',
   choose:'Choisis une carte.', noBoard:'Aucune carte disponible : construis-en une avec le pipeline (README, « Ajouter une carte »).',
   offline:'Carte indisponible hors-ligne : ouvre-la une fois avec le réseau pour la garder sur l’appareil.',
   loadErr:e=>`Impossible de charger la carte (${e}). Recharge la page.`, seeFiles:'Voir les fichiers', otherBoard:'Choisir une autre carte',
@@ -338,6 +345,17 @@ fr:{
   nlMsg:'Traits pointillés = liaisons du schéma, pas le trajet des pistes. Touche une autre broche, ou passe sur l’autre face.',
   nlPower:n=>`Signal d’alimentation (${n} broches) : seules les broches sont marquées, sans traits.`,
   nlNone:'Broche non relevée dans le schéma transcrit : aucune liaison connue.',
+  nlBadgeScan:'Carte incomplète · pas de pistes', nlTitleScan:'Carte incomplète : composants et broches seulement',
+  nlText1Scan:'Cette carte vient de scans à 600 dpi, trop justes pour relever les pistes de façon fiable. Les composants et leurs broches sont placés et décrits, mais les liaisons entre les puces ne sont pas connues.',
+  nlLi1Scan:'Touche une broche : son nom et la description du signal s’affichent.',
+  nlLi2Scan:'Seules la masse (GND) et l’alimentation (VCC) sont reliées, d’après les pinouts. Aucune autre liaison n’est indiquée.',
+  nlLi3Scan:'Un scan en plus haute résolution permettra d’ajouter les pistes. En attendant, relève les liaisons au multimètre.',
+  legLinkScan:'liaison d’alimentation (pas une piste)',
+  discNl1Scan:'Carte incomplète : composants et broches seulement, pistes et liaisons non relevées',
+  nlNoneScan:'Aucune liaison relevée pour cette broche (carte incomplète) : mesure au multimètre.',
+  nlFactsScan:(n)=>`${n} broche${n>1?'s':''} reliée${n>1?'s':''} d’après les pinouts (alimentation) · pistes non tracées`,
+  nlMsgScan:'Traits pointillés = liaisons d’alimentation déduites des pinouts, pas le trajet des pistes.',
+  nlNoLink:'aucune liaison connue',
   tagNl:'liaisons seules, sans pistes', netName:n=>`Signal ${n} `, pinsN:n=>n>1?'broches ':'broche ', faceTop:'dessus', faceBot:'dessous', faceTh:'traversant',
   ddVer:(v,bv)=>`Outil v${v} · carte générée par le pipeline `+(bv?`v${bv}`:'d’une version antérieure à 1.0.0'),
 },
@@ -381,7 +399,9 @@ en:{
   MB:' MB', kB:' kB', role:r=>({'relevé dessus':'top layout','relevé dessous':'bottom layout','photo dessus':'top photo','photo dessous':'bottom photo','netlist':'netlist'})[r]||r,
   dbCount:n=>`${n} board${n!==1?'s':''} in the catalog`,
   dbMissing:'Catalog not found (boards/index.json): run “python pipeline/pcbnet.py index” after building a board.',
-  card:(p,n,v,b)=>`${p} component${p!==1?'s':''} · ${n} nets · version ${v} · ${b}`, tagShown:'shown', tagOffline:'available offline',
+  card:(p,n,v,b)=>`${p} component${p!==1?'s':''} · ${n} nets · version ${v} · ${b}`,
+  relLabel:n=>`Mapping reliability ${n}%`, relDetail:(a,b)=>`traces ${a}% · pins ${b}%`,
+  relTitle:'100% = traces and pins fully mapped. Half traced copper, half pins with a known connection.', tagShown:'shown', tagOffline:'available offline',
   choose:'Choose a board.', noBoard:'No board available: build one with the pipeline (README, “Adding a board”).',
   offline:'Board unavailable offline: open it once while online to keep it on this device.',
   loadErr:e=>`Unable to load the board (${e}). Reload the page.`, seeFiles:'Show files', otherBoard:'Choose another board',
@@ -405,6 +425,17 @@ en:{
   nlMsg:'Dotted lines = schematic connections, not trace routes. Tap another pin, or switch to the other side.',
   nlPower:n=>`Power signal (${n} pins): pins are marked, without lines.`,
   nlNone:'Pin not found in the transcribed schematic: no known connection.',
+  nlBadgeScan:'Incomplete board · no traces', nlTitleScan:'Incomplete board: components and pins only',
+  nlText1Scan:'This board comes from 600 dpi scans, too coarse to trace the copper reliably. Components and their pins are placed and described, but the connections between chips are unknown.',
+  nlLi1Scan:'Tap a pin: its name and the signal description are shown.',
+  nlLi2Scan:'Only ground (GND) and power (VCC) are connected, from the pinouts. No other connection is shown.',
+  nlLi3Scan:'A higher-resolution scan will allow adding the traces. Meanwhile, trace connections with a multimeter.',
+  legLinkScan:'power connection (not a trace)',
+  discNl1Scan:'Incomplete board: components and pins only, traces and connections not traced',
+  nlNoneScan:'No connection traced for this pin (incomplete board): measure it with a multimeter.',
+  nlFactsScan:(n)=>`${n} connected pin${n!==1?'s':''} from the pinouts (power) · traces not drawn`,
+  nlMsgScan:'Dotted lines = power connections inferred from the pinouts, not trace routes.',
+  nlNoLink:'no known connection',
   tagNl:'connections only, no traces', netName:n=>`Signal ${n} `, pinsN:n=>n!==1?'pins ':'pin ', faceTop:'top', faceBot:'bottom', faceTh:'through-hole',
   ddVer:(v,bv)=>`Tool v${v} · board generated by pipeline `+(bv?`v${bv}`:'older than 1.0.0'),
 }};
@@ -424,7 +455,7 @@ function td(s){ // traduit un terme de données (français dans les fichiers) po
   m=s.match(/^(Pièce|Compteur|Blocage|Manette) (\d)$/); if(m) return DATA_EN[m[1]]+' '+m[2];
   return s.replace(/^Relevé du cuivre\s*:\s*/,'Copper layout: ').replace(/^Relevé synthétique/,'Synthetic layout')
     .replace(/^Recréation KiCad et scans\s*:\s*/,'KiCad recreation and scans: ').replace('(domaine public)','(public domain)')
-    .replace(/^Schémas\s*:\s*/,'Schematics: ').replace(/scans\s*:\s*/,'scans: ').replace('liaisons transcrites à la main','connections transcribed by hand');
+    .replace(/^Schémas\s*:\s*/,'Schematics: ').replace(/scans\s*:\s*/i,m=>m[0]+'cans: ').replace('liaisons transcrites à la main','connections transcribed by hand');
 }
 let lang=null;
 try{lang=JSON.parse(localStorage.getItem('pcbnet-prefs')||'{}').lang||null;}catch(e){}
@@ -624,8 +655,18 @@ async function openBoards(){
     const box=document.createElement('div'), line=(c,txt)=>{const e=document.createElement('div'); e.className=c; e.textContent=txt; box.append(e);};
     line('t',b.name); if(b.credit) line('m',td(b.credit));
     line('m',t('card',b.parts,b.nets,b.version,b.built));
+    if(b.reliability){ // fiabilité du mapping (catalogue, calculée par le pipeline)
+      const r=b.reliability, e=document.createElement('div');
+      e.className='rel '+(r.score>=90?'hi':r.score>=40?'mid':'lo'); e.title=t('relTitle');
+      e.setAttribute('role','meter'); e.setAttribute('aria-valuemin','0'); e.setAttribute('aria-valuemax','100');
+      e.setAttribute('aria-valuenow',r.score); e.setAttribute('aria-label',t('relLabel',r.score));
+      const bar=document.createElement('span'); bar.className='gauge'; const i=document.createElement('i'); i.style.width=r.score+'%'; bar.append(i);
+      const lb=document.createElement('b'); lb.textContent=t('relLabel',r.score);
+      const sm=document.createElement('small'); sm.textContent=t('relDetail',r.traces,r.pins);
+      e.append(bar,lb,sm); box.append(e);
+    }
     const tags=document.createElement('div'); tags.className='row';
-    if(b.mode==='netlist') tags.append(mkTag('warn','⚠ '+t('tagNl')));
+    if(b.mode==='netlist'&&b.nl_kind!=='scan') tags.append(mkTag('warn','⚠ '+t('tagNl'))); // carte incomplète : la fiabilité suffit
     if(cur) tags.append(mkTag('top',t('tagShown'))); if(off) tags.append(mkTag('ex',t('tagOffline')));
     if(tags.childNodes.length) box.append(tags);
     btn.append(im,box);
@@ -755,8 +796,10 @@ function drawLinks(){
     else ctx.strokeRect(p.x-p.w/2-m,p.y-p.h/2-m,p.w+2*m,p.h+2*m); }
 }
 // avertissement « liaisons seules » : badge permanent sur la carte, explication ouverte à la 1re visite
+const nk=k=>B&&B.nl_kind==='scan'&&I18N.fr[k+'Scan']!=null?k+'Scan':k; // texte « carte scannée incomplète »
 function nlSetup(){
   const on=NL(); $('nl-badge').hidden=!on;
+  for(const e of document.querySelectorAll('[data-nl]')){ e.dataset.i18n=nk(e.dataset.nl); e.textContent=t(e.dataset.i18n); }
   for(const e of document.querySelectorAll('.nl-only')) e.hidden=!on;
   for(const e of document.querySelectorAll('.cu-only')) e.hidden=on;
   if(!on) return;
@@ -800,9 +843,9 @@ function draw(){
     for(const p of B.pads){ if(p[4]!==fl) continue; ctx.strokeRect(p[0]-p[2]/2-1,p[1]-p[3]/2-1,p[2]+2,p[3]+2); }
     for(const h of B.holes){ if(h[2]<B.viaR) continue; ctx.beginPath(); ctx.arc(h[0],h[1],h[2]+2,0,Math.PI*2); ctx.stroke(); }
   }
-  if(sel){
+  if(sel||(NL()&&selPin)){
     ctx.fillStyle='rgba(10,12,14,0.62)'; ctx.fillRect(0,0,W,H);
-    if(NL()) drawLinks(); else ctx.drawImage(overlay,0,0);
+    if(NL()){ if(sel) drawLinks(); } else ctx.drawImage(overlay,0,0);
     ctx.lineWidth=Math.max(1.2,2/s);
     for(const p of B.pads){ if(p[5]!==sel) continue;
       ctx.strokeStyle=p[4]===fl?'#ffb21e':'#3fd0ff';
@@ -882,7 +925,7 @@ let cands=[], candIdx=0, lastTap=null, tapMark=null, aim=null, aimCand=null, hol
 function candidates(x,y){ return candidatesAt(x,y,FINGER,PIN_BONUS); }
 function candidatesAt(x,y,finger,pinBonus){
   const r=finger/s, bonus=pinBonus/s, fl=face==='top'?0:1, best=new Map();
-  const put=(net,score,pin)=>{ if(!net) return; const c=best.get(net); if(!c||score<c.score) best.set(net,{net,score,pin}); };
+  const put=(net,score,pin,key=net)=>{ if(!key) return; const c=best.get(key); if(!c||score<c.score) best.set(key,{net,score,pin}); };
   for(const p of B.pads){ if(p[4]!==fl||!p[5]) continue;
     const dx=Math.max(Math.abs(x-p[0])-p[2]/2,0), dy=Math.max(Math.abs(y-p[1])-p[3]/2,0), d=Math.hypot(dx,dy);
     if(d>r) continue;
@@ -891,10 +934,10 @@ function candidatesAt(x,y,finger,pinBonus){
     put(p[5],d-bonus+inner,[p[0],p[1],Math.max(p[2],p[3])/2,'cms']);
   }
   PARTS.forEach((P,pi)=>{ if(!partOn(P)||x<P.x0-r||x>P.x1+r||y<P.y0-r||y>P.y1+r) return;
-    P.pins.forEach((p,k)=>{ const [px,py,w,h,,,net]=p; if(!net) return; // broche non reliée : pas un candidat
+    P.pins.forEach((p,k)=>{ const [px,py,w,h,,,net]=p; if(!net&&!NL()) return; // broche non reliée : candidate seulement en mode liaisons
       const d=Math.hypot(Math.max(Math.abs(x-px)-w/2,0),Math.max(Math.abs(y-py)-h/2,0)); if(d>r) return;
       const inner=d===0?Math.hypot(x-px,y-py)/(Math.max(w,h)+1)*0.01:0;
-      put(net,d-bonus+inner-0.001,[px,py,Math.max(w,h)/2,P.th?'th':'cms',w,h,pi,k]); }); // devant la pastille seule
+      put(net,d-bonus+inner-0.001,[px,py,Math.max(w,h)/2,P.th?'th':'cms',w,h,pi,k],net||'p'+pi+':'+k); }); // devant la pastille seule
   });
   for(const h of B.holes){ if(!h[4]) continue;
     const d=Math.max(Math.hypot(x-h[0],y-h[1])-h[2]-1.5,0); if(d>r) continue;
@@ -926,8 +969,8 @@ function select(k,example,keepPin){
 }
 function info(){
   const T=$('s-title'),f=$('s-facts'),n=$('s-note');
-  $('a-frame').hidden=$('a-clear').hidden=!sel;
-  if(!sel){$('s-pins').hidden=$('s-cand').hidden=$('s-desc').hidden=true; T.textContent=t('tapPrompt');f.textContent='';n.textContent=t('holdHint');n.className='note';return;}
+  $('a-frame').hidden=!sel; $('a-clear').hidden=!sel&&!(NL()&&selPin);
+  if(!sel&&!(NL()&&selPin)){$('s-pins').hidden=$('s-cand').hidden=$('s-desc').hidden=true; T.textContent=t('tapPrompt');f.textContent='';n.textContent=t('holdHint');n.className='note';return;}
   if(NL()) return infoNl();
   const m=B.nets[sel], pt=m[4], pb=m[5], nh=m[6], tot=pt+pb;
   const hs=B.holes.filter(h=>h[4]===sel), vias=hs.filter(h=>h[2]<B.viaR).length, pins=hs.length-vias;
@@ -1043,14 +1086,14 @@ dlgS.addEventListener('click',e=>{ if(e.target===dlgS) dlgS.close(); });
 function infoNl(){ // fiche en mode liaisons : nom du signal, broches reliées, rappel « pas de pistes »
   const T=$('s-title'),f=$('s-facts'),n=$('s-note');
   const own=selPin&&selPin[6]!=null?[selPin[6],selPin[7]]:null, op=own&&PARTS[own[0]], opin=own&&op.pins[own[1]];
-  const all=PINS_BY_NET.get(sel)||[], others=all.filter(([pi,k])=>!own||pi!==own[0]||k!==own[1]);
+  const all=sel&&PINS_BY_NET.get(sel)||(own?[own]:[]), others=all.filter(([pi,k])=>!own||pi!==own[0]||k!==own[1]);
   const nm=B.net_names&&B.net_names[sel];
   T.textContent=own?t('pinTitle',pname(op),opin[4],td(opin[5])):t('netName',nm||sel);
   const onT=all.some(([pi])=>PARTS[pi].th||PARTS[pi].face===0), onB=all.some(([pi])=>PARTS[pi].th||PARTS[pi].face===1);
   const tag=(c,txt)=>{const e=document.createElement('span'); e.className='tag '+c; e.textContent=txt; return e;};
   if(onT) T.append(tag('top',t('tagTop'))); if(onB) T.append(' ',tag('bot',t('tagBot')));
   if(isExample) T.append(' ',tag('ex',t('tagEx')));
-  f.textContent=(nm?nm+' · ':'')+t('nlFacts',all.length);
+  f.textContent=sel?(nm?nm+' · ':'')+t(nk('nlFacts'),all.length):t('nlNoLink');
   const sd=$('s-desc'), ds=own&&pinDesc(opin); sd.hidden=!ds; sd.textContent='';
   if(ds){ sd.append(ds.d); if(ds.f){ const e=document.createElement('span'); e.className='f'; e.textContent=t('fault')+ds.f; sd.append(e); } }
   const sp=$('s-pins'); sp.hidden=!others.length; sp.textContent='';
@@ -1058,7 +1101,7 @@ function infoNl(){ // fiche en mode liaisons : nom du signal, broches reliées, 
     others.slice(0,16).forEach(([pi,k],i)=>{ const P=PARTS[pi], p=P.pins[k], b=document.createElement('b');
       b.textContent=td(p[5]); sp.append(i?' · ':'', pname(P)+' '+p[4]+' ', b); });
     if(others.length>16) sp.append(' · … +'+(others.length-16)); }
-  n.textContent=all.length>NL_POWER?t('nlPower',all.length):t('nlMsg'); n.className='note warn';
+  n.textContent=!sel?t(nk('nlNone')):all.length>NL_POWER?t('nlPower',all.length):t(nk('nlMsg')); n.className='note warn';
   $('s-cand').hidden=true;
 }
 
