@@ -128,6 +128,8 @@ dialog.panel h2{margin:0 0 2px;font-size:17px}
 .bcard img{width:96px;height:72px;object-fit:cover;border-radius:5px;background:var(--bench)}
 .bcard .t{font-weight:600} .bcard .m{font-family:var(--f-data);font-size:12px;color:var(--muted);margin-top:2px}
 .bcard .row{margin-top:5px}
+.db-brands{display:flex;flex-wrap:wrap;width:fit-content;max-width:100%;margin-top:8px}
+.db-brands button small{font-family:var(--f-data);font-size:11px;opacity:.75;margin-left:5px}
 .bcard .rel{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;flex-wrap:wrap}
 .bcard .rel .gauge{flex:0 0 72px;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .bcard .rel .gauge i{display:block;height:100%;background:currentColor}
@@ -239,6 +241,7 @@ body{margin:0}
 <dialog class="panel" id="dlg-boards" aria-labelledby="db-title">
   <h2 id="db-title" data-i18n="dbTitle">Choisir une carte</h2>
   <div class="facts" id="db-sub"></div>
+  <div class="seg db-brands" id="db-brands" role="group" data-i18n-aria="dbBrands" hidden></div>
   <div id="db-list"></div>
   <p class="disclaim" style="margin:10px 0" data-i18n-html="dbNote"></p>
   <div class="row"><button class="act" id="db-close" data-i18n="close">Fermer</button></div>
@@ -318,6 +321,9 @@ fr:{
   sumUnk:'Certains fichiers n’ont pas pu être vérifiés.', crcRead:'CRC32 lu ', expected:' · attendu ', expectedNone:' · attendu : —',
   MB:' Mo', kB:' ko', role:r=>r,
   dbCount:n=>`${n} carte${n>1?'s':''} dans le catalogue`,
+  dbCountF:(n,m,b)=>`${n} carte${n>1?'s':''} ${b} sur ${m} dans le catalogue`,
+  dbCountNB:(n,m)=>`${n} carte${n>1?'s':''} sans marque sur ${m} dans le catalogue`,
+  dbBrands:'Filtrer par marque', dbAll:'Toutes', dbNoBrand:'Autres',
   dbMissing:'Catalogue introuvable (boards/index.json) : lance « python pipeline/pcbnet.py index » après avoir construit une carte.',
   card:(p,n,v,b)=>`${p} composant${p>1?'s':''} · ${n} nets · version ${v} · ${b}`,
   relLabel:n=>`Fiabilité du mapping ${n}\u00a0%`, relDetail:(a,b)=>`pistes ${a}\u00a0% · broches ${b}\u00a0%`,
@@ -346,10 +352,10 @@ fr:{
   nlPower:n=>`Signal d’alimentation (${n} broches) : seules les broches sont marquées, sans traits.`,
   nlNone:'Broche non relevée dans le schéma transcrit : aucune liaison connue.',
   nlBadgeScan:'Carte incomplète · pas de pistes', nlTitleScan:'Carte incomplète : composants et broches seulement',
-  nlText1Scan:'Cette carte vient de scans à 600 dpi, trop justes pour relever les pistes de façon fiable. Les composants et leurs broches sont placés et décrits, mais les liaisons entre les puces ne sont pas connues.',
+  nlText1Scan:'Le relevé automatique des pistes sur les scans de cette carte n’est pas assez fiable pour être publié. Les composants et leurs broches sont placés et décrits, mais les liaisons entre les puces ne sont pas connues.',
   nlLi1Scan:'Touche une broche : son nom et la description du signal s’affichent.',
   nlLi2Scan:'Seules la masse (GND) et l’alimentation (VCC) sont reliées, d’après les pinouts. Aucune autre liaison n’est indiquée.',
-  nlLi3Scan:'Un scan en plus haute résolution permettra d’ajouter les pistes. En attendant, relève les liaisons au multimètre.',
+  nlLi3Scan:'Les liaisons pourront être ajoutées plus tard (nettoyage du flux, nouveau scan). En attendant, relève-les au multimètre.',
   legLinkScan:'liaison d’alimentation (pas une piste)',
   discNl1Scan:'Carte incomplète : composants et broches seulement, pistes et liaisons non relevées',
   nlNoneScan:'Aucune liaison relevée pour cette broche (carte incomplète) : mesure au multimètre.',
@@ -398,6 +404,9 @@ en:{
   sumUnk:'Some files could not be checked.', crcRead:'CRC32 read ', expected:' · expected ', expectedNone:' · expected: —',
   MB:' MB', kB:' kB', role:r=>({'relevé dessus':'top layout','relevé dessous':'bottom layout','photo dessus':'top photo','photo dessous':'bottom photo','netlist':'netlist'})[r]||r,
   dbCount:n=>`${n} board${n!==1?'s':''} in the catalog`,
+  dbCountF:(n,m,b)=>`${n} ${b} board${n!==1?'s':''} out of ${m} in the catalog`,
+  dbCountNB:(n,m)=>`${n} board${n!==1?'s':''} without a brand out of ${m} in the catalog`,
+  dbBrands:'Filter by brand', dbAll:'All', dbNoBrand:'Others',
   dbMissing:'Catalog not found (boards/index.json): run “python pipeline/pcbnet.py index” after building a board.',
   card:(p,n,v,b)=>`${p} component${p!==1?'s':''} · ${n} nets · version ${v} · ${b}`,
   relLabel:n=>`Mapping reliability ${n}%`, relDetail:(a,b)=>`traces ${a}% · pins ${b}%`,
@@ -426,10 +435,10 @@ en:{
   nlPower:n=>`Power signal (${n} pins): pins are marked, without lines.`,
   nlNone:'Pin not found in the transcribed schematic: no known connection.',
   nlBadgeScan:'Incomplete board · no traces', nlTitleScan:'Incomplete board: components and pins only',
-  nlText1Scan:'This board comes from 600 dpi scans, too coarse to trace the copper reliably. Components and their pins are placed and described, but the connections between chips are unknown.',
+  nlText1Scan:'Automatic tracing of this board’s scans is not reliable enough to be published. Components and their pins are placed and described, but the connections between chips are unknown.',
   nlLi1Scan:'Tap a pin: its name and the signal description are shown.',
   nlLi2Scan:'Only ground (GND) and power (VCC) are connected, from the pinouts. No other connection is shown.',
-  nlLi3Scan:'A higher-resolution scan will allow adding the traces. Meanwhile, trace connections with a multimeter.',
+  nlLi3Scan:'Connections may be added later (flux cleaning, new scan). Meanwhile, trace them with a multimeter.',
   legLinkScan:'power connection (not a trace)',
   discNl1Scan:'Incomplete board: components and pins only, traces and connections not traced',
   nlNoneScan:'No connection traced for this pin (incomplete board): measure it with a multimeter.',
@@ -447,15 +456,21 @@ const DATA_EN={'RAM 68k':'68k RAM','RAM sauvegarde':'Backup RAM','VRAM rapide':'
   'Rouge':'Red','Vert':'Green','Bleu':'Blue','Masse vidéo':'Video GND','Masse audio':'Audio GND','Synchro':'Sync','GND pré':'Pre GND',
   'Filtre':'Ripple filter','Haut':'Up','Bas':'Down','Gauche':'Left','Droite':'Right','Pièce':'Coin','Compteur':'Coin counter','Blocage':'Coin lockout',
   'Slot CHA':'CHA slot','Slot PROG':'PROG slot','Carte mémoire':'Memory card','Prise A/V':'A/V socket','Alimentation':'Power',
-  'Masse A/V':'A/V ground','Blindage':'Shield','Manette':'Joypad'};
+  'Masse A/V':'A/V ground','Blindage':'Shield','Manette':'Joypad','FILTRE':'Ripple filter','Oscillateur':'Oscillator',
+  'Réseau R ×8':'Resistor network ×8','Réseau R ×4':'Resistor network ×4','Filtre EMI':'EMI filter','Connecteur 15':'15-pin connector',
+  'rouge':'red','vert':'green','bleu':'blue','tuiles':'tiles','sprites':'sprites','son':'sound','joueur':'player'};
 function td(s){ // traduit un terme de données (français dans les fichiers) pour l'interface anglaise
   if(lang!=='en'||typeof s!=='string') return s;
   if(DATA_EN[s]) return DATA_EN[s];
   let m=s.match(/^J([12]) (.+)$/); if(m) return 'P'+m[1]+' '+(DATA_EN[m[2]]||m[2]);
   m=s.match(/^(Pièce|Compteur|Blocage|Manette) (\d)$/); if(m) return DATA_EN[m[1]]+' '+m[2];
+  m=s.match(/^Tir (\d)$/); if(m) return 'Button '+m[1];
+  m=s.match(/^(.+) \((rouge|vert|bleu|tuiles|sprites|son|joueur \d|S31–S40 \?)\)$/); if(m) return m[1]+' ('+m[2].replace(/^(\S+)/,w=>DATA_EN[w]||w)+')';
   return s.replace(/^Relevé du cuivre\s*:\s*/,'Copper layout: ').replace(/^Relevé synthétique/,'Synthetic layout')
     .replace(/^Recréation KiCad et scans\s*:\s*/,'KiCad recreation and scans: ').replace('(domaine public)','(public domain)')
-    .replace(/^Schémas\s*:\s*/,'Schematics: ').replace(/scans\s*:\s*/i,m=>m[0]+'cans: ').replace('liaisons transcrites à la main','connections transcribed by hand');
+    .replace(/^Schémas\s*:\s*/,'Schematics: ').replace(/scans\s*:\s*/i,m=>m[0]+'cans: ').replace('liaisons transcrites à la main','connections transcribed by hand')
+    .replace('manuel Konami et pages OBJECT / VRAM de GURU','Konami manual and OBJECT / VRAM pages by GURU')
+    .replace(/photo\s*:\s*/,'photo: ').replace(/brochages\s*:\s*/,'pinouts: ');
 }
 let lang=null;
 try{lang=JSON.parse(localStorage.getItem('pcbnet-prefs')||'{}').lang||null;}catch(e){}
@@ -489,10 +504,11 @@ const img={}; const map={top:null,bot:null};
 let face='top', bg='draw', mirror=false, labels=true, sheetH=null; // sheetH : hauteur choisie du bandeau (null = auto)
 let PARTS=[], FONT_UI='sans-serif', FONT_DATA='monospace'; const PINS_BY_NET=new Map(); // composants (board.json "parts") et leurs broches par net
 let sel=0, isExample=false, overlay=null, oCtx=null, selPin=null, sigSort='part'; // sigSort : tri du menu Signaux
+let brand=''; // marque filtrée dans la liste des cartes ('' = toutes, '?' = sans marque)
 let s=1, tx=0, ty=0; // écran = s*img + t (img x éventuellement miroir)
 // préférences (l'ancienne clé « mv1fzs » est reprise)
-try{const p=JSON.parse(localStorage.getItem('pcbnet-prefs')||localStorage.getItem('mv1fzs')||'{}'); if(p.bg) bg=p.bg; if(p.mirror) mirror=!!p.mirror; if(p.labels===false) labels=false; if(p.sheetH>0) sheetH=p.sheetH; if(p.sigSort==='sig') sigSort='sig';}catch(e){}
-function save(){try{localStorage.setItem('pcbnet-prefs',JSON.stringify({bg,mirror,labels,sheetH,lang,sigSort}))}catch(e){}}
+try{const p=JSON.parse(localStorage.getItem('pcbnet-prefs')||localStorage.getItem('mv1fzs')||'{}'); if(p.bg) bg=p.bg; if(p.mirror) mirror=!!p.mirror; if(p.labels===false) labels=false; if(p.sheetH>0) sheetH=p.sheetH; if(p.sigSort==='sig') sigSort='sig'; if(typeof p.brand==='string') brand=p.brand;}catch(e){}
+function save(){try{localStorage.setItem('pcbnet-prefs',JSON.stringify({bg,mirror,labels,sheetH,lang,sigSort,brand}))}catch(e){}}
 
 // --- Intégrité : chaque image est lue en octets ; son CRC32, sa taille et ses dimensions sont comparés aux valeurs
 // que le pipeline a écrites dans board.json (files). Ce sont donc exactement les fichiers affichés qui sont vérifiés.
@@ -642,14 +658,33 @@ async function loadCatalog(){
 }
 const dlgB=$('dlg-boards');
 const sameDir=(a,b)=>!!a&&!!b&&new URL(a,location.href).href===new URL(b,location.href).href;
+let dbGen=0; // liste des cartes en cours de construction (un clic sur un filtre relance la construction)
 async function openBoards(){
+  const gen=++dbGen;
   if(!CAT) CAT=await loadCatalog();
+  if(gen!==dbGen) return;
   const list=$('db-list'); list.textContent='';
-  $('db-sub').textContent=CAT?t('dbCount',CAT.length):t('dbMissing');
+  // filtre par marque (champ "brand" de config.json) : boutons « Toutes » + une par marque, avec le nombre de cartes
+  const bk=b=>b.brand||'?', counts=new Map();
+  for(const b of CAT||[]) counts.set(bk(b),(counts.get(bk(b))||0)+1);
+  if(brand&&!counts.has(brand)) brand='';
+  const bs=$('db-brands'); bs.textContent=''; bs.hidden=!counts.size;
+  const C=coll(), keys=[...counts.keys()].sort((a,b)=>(a==='?')-(b==='?')||C.compare(a,b));
+  for(const k of ['',...keys]){
+    const e=document.createElement('button'); e.type='button'; e.setAttribute('aria-pressed',brand===k);
+    e.append(k===''?t('dbAll'):k==='?'?t('dbNoBrand'):k);
+    const n=document.createElement('small'); n.textContent=k===''?(CAT||[]).length:counts.get(k); e.append(n);
+    e.onclick=()=>{ brand=k; save(); openBoards().then(()=>{ const f=bs.querySelector('[aria-pressed="true"]'); if(f) f.focus(); }); };
+    bs.append(e);
+  }
+  const shown=(CAT||[]).filter(b=>!brand||bk(b)===brand);
+  $('db-sub').textContent=!CAT?t('dbMissing'):brand==='?'?t('dbCountNB',shown.length,CAT.length)
+    :brand?t('dbCountF',shown.length,CAT.length,brand):t('dbCount',CAT.length);
   const cache='caches' in window?await caches.open('pcbnet-boards').catch(()=>null):null;
-  for(const b of CAT||[]){
+  for(const b of shown){
     const dir='../boards/'+b.path, cur=sameDir(dir,DATA);
     const off=cache&&await cache.match(new URL(dir+'board.json',location.href).href);
+    if(gen!==dbGen) return; // liste refaite entre-temps (autre filtre)
     const btn=document.createElement('button'); btn.className='bcard'; if(cur) btn.setAttribute('aria-current','true');
     const im=document.createElement('img'); im.alt=''; im.loading='lazy'; if(b.thumb) im.src=dir+b.thumb+'?v='+b.version;
     const box=document.createElement('div'), line=(c,txt)=>{const e=document.createElement('div'); e.className=c; e.textContent=txt; box.append(e);};
