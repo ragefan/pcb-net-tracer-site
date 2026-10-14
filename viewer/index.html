@@ -157,6 +157,8 @@ dialog.panel h2{margin:0 0 2px;font-size:17px}
 .srow .c{font-size:13px} .srow .c small{display:block;font-family:var(--f-data);font-size:11px;color:var(--muted)}
 .srow .d{font-size:14px;line-height:1.35} .srow .d.none{color:var(--muted);font-style:italic}
 .srow .f{display:block;font-size:12px;color:var(--warn);margin-top:2px}
+.sens{margin-left:4px;font-size:.85em} .sens.s-S{color:#ffcf4a} .sens.s-E{color:#7fd7ff} .sens.s-B{color:var(--ink)}
+.note.desc .sl{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
 #ds-empty{color:var(--muted);padding:16px 0}
 @media (max-width:620px){
   .srow,.srow.by-sig{grid-template-columns:auto 1fr} .srow .d{grid-column:1/3}
@@ -232,7 +234,7 @@ body{margin:0}
   <div class="row">
     <button class="act" id="a-frame" hidden data-i18n="frame">Cadrer le net</button>
     <button class="act" id="a-clear" hidden data-i18n="clear">Effacer</button>
-    <div class="legend"><span><i style="background:var(--solder)"></i><span data-i18n="legShown">face affichée</span></span><span><i style="background:var(--probe)"></i><span data-i18n="legOther">autre face</span></span><span data-i18n="legSmd">▢ pin CMS</span><span data-i18n="legTh">◯ pin traversante / via</span><span class="nl-only" hidden><span class="nl-line"></span><span data-i18n="legLink" data-nl="legLink">liaison du schéma (pas une piste)</span></span></div>
+    <div class="legend"><span><i style="background:var(--solder)"></i><span data-i18n="legShown">face affichée</span></span><span><i style="background:var(--probe)"></i><span data-i18n="legOther">autre face</span></span><span data-i18n="legSmd">▢ pin CMS</span><span data-i18n="legTh">◯ pin traversante / via</span><span><span class="sens s-S">▶</span> <span data-i18n="legOut">sortie</span> <span class="sens s-E">◀</span> <span data-i18n="legIn">entrée</span> <span class="sens s-B">◆</span> <span data-i18n="legBi">bidir.</span></span><span class="nl-only" hidden><span class="nl-line"></span><span data-i18n="legLink" data-nl="legLink">liaison du schéma (pas une piste)</span></span></div>
   </div>
   <p class="disclaim cu-only"><span data-i18n="disc1">Tracé extrait automatiquement des relevés de cuivre</span><span id="s-credit"></span><span data-i18n="disc2">. Les couches internes n’y figurent pas. Confirme au multimètre avant de dessouder.</span></p>
   <p class="disclaim nl-only" hidden><span data-i18n="discNl1" data-nl="discNl1">Liaisons transcrites des schémas, sans relevé de cuivre : le trajet des pistes n’est pas connu</span><span class="s-credit"></span><span data-i18n="discNl2">. Confirme au multimètre avant de dessouder.</span></p>
@@ -302,6 +304,9 @@ fr:{
   fromPin:th=>'depuis une pin '+(th?'traversante':'CMS'),
   facts:(c,p,v)=>`${c} pin${c>1?'s':''} CMS · ${p} pin${p>1?'s':''} traversante${p>1?'s':''} · ${v} via${v>1?'s':''}`,
   linked:'Relié à : ', pinsOn:'Broches : ',
+  legOut:'sortie', legIn:'entrée', legBi:'bidir.',
+  sensS:'Sortie : cette broche pilote le signal', sensE:'Entrée : cette broche reçoit le signal',
+  sensB:'Bidirectionnelle : pilote ou reçoit selon le moment (bus de données)', sensA:'Alimentation', sensP:'Sans sens (contact passif)',
   msgPlane:'Grande surface de cuivre : plan de masse ou d’alimentation local. Il est sans doute relié au reste par une couche interne.',
   msgVia:'Ce net finit sur un seul via sans autre piste : il descend sans doute vers une couche interne (masse ou +5 V). La carte semble avoir des plans internes non visibles sur ce relevé.',
   msgNoHole:'Aucun trou sur ce net : il ne relie que des pastilles CMS de cette face.', msgOneSide:'Le net reste sur une seule face.',
@@ -385,6 +390,9 @@ en:{
   fromPin:th=>'from '+(th?'a through-hole pin':'an SMD pin'),
   facts:(c,p,v)=>`${c} SMD pin${c!==1?'s':''} · ${p} through-hole pin${p!==1?'s':''} · ${v} via${v!==1?'s':''}`, // anglais : 0 au pluriel
   linked:'Connected to: ', pinsOn:'Pins: ',
+  legOut:'output', legIn:'input', legBi:'bidir.',
+  sensS:'Output: this pin drives the signal', sensE:'Input: this pin receives the signal',
+  sensB:'Bidirectional: drives or receives depending on the cycle (data bus)', sensA:'Power', sensP:'No direction (passive contact)',
   msgPlane:'Large copper area: local ground or power plane. It is probably connected to the rest through an inner layer.',
   msgVia:'This net ends on a single via with no other trace: it probably goes down to an inner layer (ground or +5 V). The board seems to have inner planes that are not visible on this layout.',
   msgNoHole:'No hole on this net: it only connects SMD pads on this side.', msgOneSide:'The net stays on one side.',
@@ -740,7 +748,8 @@ function prepParts(){
     const gaps=P.pins.slice(1).map((p,i)=>Math.hypot(p[0]-P.pins[i][0],p[1]-P.pins[i][1])).sort((a,b)=>a-b);
     const hz=P.pins.map(([x,y])=>Math.min(x-cx0,cx1-x)<Math.min(y-cy0,cy1-y)); // broche sur un côté vertical : texte horizontal
     const pitch=gaps[gaps.length>>2]||10, row=Math.min(cx1-cx0,cy1-cy0)<pitch; // une seule rangée : connecteur de bord
-    return {...P, x0:cx0-ext, y0:cy0-ext, x1:cx1+ext, y1:cy1+ext, cx:(cx0+cx1)/2, cy:(cy0+cy1)/2, pitch, hz, row};
+    const edge=row&&Math.min(cx0,cy0,W-cx1,H-cy1)<0.05*Math.max(W,H); // connecteur de bord (JAMMA…) : rangée au bord
+    return {...P, x0:cx0-ext, y0:cy0-ext, x1:cx1+ext, y1:cy1+ext, cx:(cx0+cx1)/2, cy:(cy0+cy1)/2, pitch, hz, row, edge};
   });
   PINS_BY_NET.clear();
   PARTS.forEach((P,pi)=>P.pins.forEach((p,k)=>{ if(!p[6]) return; if(!PINS_BY_NET.has(p[6])) PINS_BY_NET.set(p[6],[]); PINS_BY_NET.get(p[6]).push([pi,k]); }));
@@ -750,6 +759,19 @@ function prepParts(){
 const partOn=P=>P.th||P.face===(face==='top'?0:1); // traversant : visible des deux faces
 // Description d'une broche (board.json « signals », 9e valeur des broches) dans la langue de l'interface :
 // [fr, en, panne fr, panne en] ; repli sur le français si la traduction manque. -> {d, f} ou null
+// Sens de la broche (board.json, 10e valeur) : S sortie (pilote le signal), E entrée (le reçoit), B bidirectionnelle,
+// A alimentation, P sans sens. Petite flèche : ▶ sortie, ◀ entrée, ◆ bidirectionnelle.
+const SENS_MARK={S:'▶',E:'◀',B:'◆'}, SENS_ORDER={S:0,B:1,E:2};
+function sensEl(p){ const v=p&&p[9]; if(!SENS_MARK[v]) return ''; const e=document.createElement('span');
+  e.className='sens s-'+v; e.textContent=SENS_MARK[v]; e.title=t('sens'+v); return e; }
+const bySens=(a,b)=>(SENS_ORDER[PARTS[a[0]].pins[a[1]][9]]??3)-(SENS_ORDER[PARTS[b[0]].pins[b[1]][9]]??3); // pilote d'abord
+function descFill(sd,pin){ // fiche : sens de la broche, puis description et symptômes
+  const ds=pin&&pinDesc(pin), v=pin&&pin[9]; sd.textContent='';
+  if(v&&(SENS_MARK[v]||v==='A')){ const e=document.createElement('span'); e.className='sl';
+    if(SENS_MARK[v]){ const m=sensEl(pin); m.style.marginLeft='0'; e.append(m,' '); } e.append(t('sens'+v)); sd.append(e); }
+  if(ds){ sd.append(ds.d); if(ds.f){ const e=document.createElement('span'); e.className='f'; e.textContent=t('fault')+ds.f; sd.append(e); } }
+  sd.hidden=!sd.childNodes.length;
+}
 function pinDesc(p){
   const r=B&&B.signals&&p[8]!=null?B.signals[p[8]]:null; if(!r) return null;
   const en=lang==='en';
@@ -800,6 +822,35 @@ function drawLabels(){
     });
   }
   ctx.textAlign='start'; boardTf();
+}
+
+// Sens du signal sur les broches du net sélectionné : petite flèche posée de l'autre côté de la broche que son
+// étiquette. Elle suit le trajet du signal : sur une puce (côté piste), une sortie s'éloigne de la broche ; sur un
+// connecteur de bord (côté câble), une commande qui entre pointe vers la broche. Couleur : jaune = la broche pilote,
+// bleu = elle reçoit ; bidirectionnelle : losange blanc.
+function drawSens(){
+  if(!sel&&!selPin) return;
+  const list=sel?(PINS_BY_NET.get(sel)||[]):(selPin&&selPin[6]!=null?[[selPin[6],selPin[7]]]:[]);
+  if(!list.length) return;
+  const d=window.devicePixelRatio||1, r=stage.getBoundingClientRect();
+  const sx=x=>tx+(mx()?W-x:x)*s, sy=y=>ty+y*s;
+  ctx.setTransform(d,0,0,d,0,0); ctx.lineJoin='round';
+  const L=7, col={S:'#ffcf4a',E:'#7fd7ff',B:'#e6e9e4'};
+  for(const [pi,k] of list){
+    const P=PARTS[pi], p=P.pins[k], v=p[9]; if(!SENS_MARK[v]||!partOn(P)) continue;
+    const X=sx(p[0]), Y=sy(p[1]); if(X<-20||X>r.width+20||Y<-20||Y>r.height+20) continue;
+    let ux,uy; // côté de l'étiquette de la broche (intérieur du composant ; intérieur de la carte pour une seule rangée)
+    if(P.hz[k]){ ux=Math.sign(P.row?sx(W/2)-X:sx(P.cx)-X)||1; uy=0; } else { ux=0; uy=Math.sign(P.row?sy(H/2)-Y:sy(P.cy)-Y)||1; }
+    const half=Math.max(P.hz[k]?p[2]:p[3],4/s)*s/2, off=half+4+L;            // centre de la flèche, côté piste
+    // la flèche suit le trajet du signal là où elle est : côté piste pour une puce (une sortie s'en éloigne), côté câble
+    // pour un connecteur de bord (une commande qui entre dans la carte pointe vers la broche)
+    const cx=X-ux*off, cy=Y-uy*off, dir=(v==='S')!==!!P.edge?-1:1;
+    ctx.beginPath();
+    if(v==='B'){ ctx.moveTo(cx+ux*L,cy+uy*L); ctx.lineTo(cx-uy*L*0.7,cy+ux*L*0.7); ctx.lineTo(cx-ux*L,cy-uy*L); ctx.lineTo(cx+uy*L*0.7,cy-ux*L*0.7); }
+    else { const ax=ux*dir, ay=uy*dir; ctx.moveTo(cx+ax*L,cy+ay*L); ctx.lineTo(cx-ax*L-ay*L*0.8,cy-ay*L+ax*L*0.8); ctx.lineTo(cx-ax*L+ay*L*0.8,cy-ay*L-ax*L*0.8); }
+    ctx.closePath(); ctx.lineWidth=3; ctx.strokeStyle='rgba(10,12,14,0.9)'; ctx.stroke(); ctx.fillStyle=col[v]; ctx.fill();
+  }
+  boardTf();
 }
 
 // Mode liaisons : broches du net marquées et reliées par un arbre couvrant minimal en pointillés (ce ne sont pas des
@@ -894,6 +945,7 @@ function draw(){
     }
   }
   drawLabels();
+  drawSens();
   if(aim) drawLoupe();
   else if(tapMark){ // zone couverte par le doigt au dernier toucher
     let [x,y]=tapMark; ctx.setLineDash([4/s,4/s]); ctx.lineWidth=1.2/s; ctx.strokeStyle='rgba(255,255,255,0.7)';
@@ -1017,15 +1069,14 @@ function info(){
   if(isExample) T.append(' ',tag('ex',t('tagEx')));
   if(selPin&&!own) T.append(' ',tag('ex',t('fromPin',selPin[3]==='th')));
   f.textContent=(own?'Net '+sel+' · ':'')+t('facts',cms,pins,vias);
-  const sd=$('s-desc'), ds=own&&pinDesc(opin); sd.hidden=!ds; sd.textContent='';
-  if(ds){ sd.append(ds.d); if(ds.f){ const e=document.createElement('span'); e.className='f'; e.textContent=t('fault')+ds.f; sd.append(e); } }
+  descFill($('s-desc'),own&&opin);
   // autres broches de composants sur ce net
-  const sp=$('s-pins'), others=(labels&&PINS_BY_NET.get(sel)||[]).filter(([pi,k])=>!own||pi!==own[0]||k!==own[1]);
+  const sp=$('s-pins'), others=(labels&&PINS_BY_NET.get(sel)||[]).filter(([pi,k])=>!own||pi!==own[0]||k!==own[1]).sort(bySens);
   sp.hidden=!others.length; sp.textContent='';
   if(others.length){
     sp.append(t(own?'linked':'pinsOn'));
     others.slice(0,12).forEach(([pi,k],i)=>{ const P=PARTS[pi], p=P.pins[k], b=document.createElement('b');
-      b.textContent=td(p[5]); sp.append(i?' · ':'', pname(P)+' '+p[4]+' ', b); });
+      b.textContent=td(p[5]); sp.append(i?' · ':'', pname(P)+' '+p[4]+' ', b, sensEl(p)); });
     if(others.length>12) sp.append(' · … +'+(others.length-12));
   }
   let msg='', warn=false;
@@ -1078,8 +1129,8 @@ function renderSignals(){
       el('small','',[P.chip&&P.chip!==P.name?P.chip:'',faceName(P),P.pins.length+' '+t('pinsN',P.pins.length).trim()].filter(Boolean).join(' · '),h); }
     const b=el('button','srow'+(sigSort==='sig'?' by-sig':''),null,frag); b.type='button';
     const nums=r.nums.length>6?r.nums.slice(0,6).join(', ')+'…':r.nums.join(', ');
-    if(sigSort==='sig'){ el('span','s',td(r.name),b); const c=el('span','c',pname(P),b); el('small','',t('pinsN',r.nums.length)+nums,c); }
-    else { el('span','n',nums,b); el('span','s',td(r.name),b); }
+    if(sigSort==='sig'){ el('span','s',td(r.name),b).append(sensEl(P.pins[r.k])); const c=el('span','c',pname(P),b); el('small','',t('pinsN',r.nums.length)+nums,c); }
+    else { el('span','n',nums,b); el('span','s',td(r.name),b).append(sensEl(P.pins[r.k])); }
     const dd=el('span','d'+(d?'':' none'),d?d.d:t('dsNoDesc'),b);
     if(d&&d.f) el('span','f',t('fault')+d.f,dd);
     b.onclick=()=>goPin(r.pi,r.k);
@@ -1129,12 +1180,11 @@ function infoNl(){ // fiche en mode liaisons : nom du signal, broches reliées, 
   if(onT) T.append(tag('top',t('tagTop'))); if(onB) T.append(' ',tag('bot',t('tagBot')));
   if(isExample) T.append(' ',tag('ex',t('tagEx')));
   f.textContent=sel?(nm?nm+' · ':'')+t(nk('nlFacts'),all.length):t('nlNoLink');
-  const sd=$('s-desc'), ds=own&&pinDesc(opin); sd.hidden=!ds; sd.textContent='';
-  if(ds){ sd.append(ds.d); if(ds.f){ const e=document.createElement('span'); e.className='f'; e.textContent=t('fault')+ds.f; sd.append(e); } }
+  descFill($('s-desc'),own&&opin);
   const sp=$('s-pins'); sp.hidden=!others.length; sp.textContent='';
   if(others.length){ sp.append(t(own?'linked':'pinsOn'));
-    others.slice(0,16).forEach(([pi,k],i)=>{ const P=PARTS[pi], p=P.pins[k], b=document.createElement('b');
-      b.textContent=td(p[5]); sp.append(i?' · ':'', pname(P)+' '+p[4]+' ', b); });
+    others.sort(bySens).slice(0,16).forEach(([pi,k],i)=>{ const P=PARTS[pi], p=P.pins[k], b=document.createElement('b');
+      b.textContent=td(p[5]); sp.append(i?' · ':'', pname(P)+' '+p[4]+' ', b, sensEl(p)); });
     if(others.length>16) sp.append(' · … +'+(others.length-16)); }
   n.textContent=!sel?t(nk('nlNone')):all.length>NL_POWER?t('nlPower',all.length):t(nk('nlMsg')); n.className='note warn';
   $('s-cand').hidden=true;
