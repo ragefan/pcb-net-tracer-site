@@ -356,16 +356,16 @@ fr:{
   nlMsg:'Traits pointillés = liaisons du schéma, pas le trajet des pistes. Touche une autre broche, ou passe sur l’autre face.',
   nlPower:n=>`Signal d’alimentation (${n} broches) : seules les broches sont marquées, sans traits.`,
   nlNone:'Broche non relevée dans le schéma transcrit : aucune liaison connue.',
-  nlBadgeScan:'Carte incomplète · pas de pistes', nlTitleScan:'Carte incomplète : composants et broches seulement',
-  nlText1Scan:'Le relevé automatique des pistes sur les scans de cette carte n’est pas assez fiable pour être publié. Les composants et leurs broches sont placés et décrits, mais les liaisons entre les puces ne sont pas connues.',
+  nlBadgeScan:'Carte incomplète · liaisons partielles', nlTitleScan:'Carte incomplète : liaisons partielles',
+  nlText1Scan:'Le relevé automatique des pistes sur les scans de cette carte n’est pas assez fiable pour tout publier. Les composants et leurs broches sont placés et décrits ; seules quelques liaisons, vérifiées, sont indiquées.',
   nlLi1Scan:'Touche une broche : son nom et la description du signal s’affichent.',
-  nlLi2Scan:'Seules la masse (GND) et l’alimentation (VCC) sont reliées, d’après les pinouts. Aucune autre liaison n’est indiquée.',
-  nlLi3Scan:'Les liaisons pourront être ajoutées plus tard (nettoyage du flux, nouveau scan). En attendant, relève-les au multimètre.',
-  legLinkScan:'liaison d’alimentation (pas une piste)',
-  discNl1Scan:'Carte incomplète : composants et broches seulement, pistes et liaisons non relevées',
-  nlNoneScan:'Aucune liaison relevée pour cette broche (carte incomplète) : mesure au multimètre.',
-  nlFactsScan:(n)=>`${n} broche${n>1?'s':''} reliée${n>1?'s':''} d’après les pinouts (alimentation) · pistes non tracées`,
-  nlMsgScan:'Traits pointillés = liaisons d’alimentation déduites des pinouts, pas le trajet des pistes.',
+  nlLi2Scan:'La masse (GND) et l’alimentation (VCC) sont reliées d’après les pinouts. Les autres liaisons indiquées sont seulement celles relevées avec certitude sur les scans : une broche sans liaison n’est pas forcément isolée.',
+  nlLi3Scan:'D’autres liaisons seront ajoutées au fur et à mesure. En attendant, relève-les au multimètre.',
+  legLinkScan:'liaison relevée (pas le trajet de la piste)',
+  discNl1Scan:'Carte incomplète : liaisons partielles, seulement celles relevées avec certitude',
+  nlNoneScan:'Aucune liaison sûre relevée pour cette broche (carte incomplète) : mesure au multimètre.',
+  nlFactsScan:(n)=>`${n} broche${n>1?'s':''} reliée${n>1?'s':''} (liaisons sûres seulement) · pistes non tracées`,
+  nlMsgScan:'Traits pointillés = liaisons relevées, pas le trajet des pistes. D’autres liaisons peuvent manquer.',
   nlNoLink:'aucune liaison connue',
   tagNl:'liaisons seules, sans pistes', netName:n=>`Signal ${n} `, pinsN:n=>n>1?'broches ':'broche ', faceTop:'dessus', faceBot:'dessous', faceTh:'traversant',
   ddVer:(v,bv)=>`Outil v${v} · carte générée par le pipeline `+(bv?`v${bv}`:'d’une version antérieure à 1.0.0'),
@@ -442,16 +442,16 @@ en:{
   nlMsg:'Dotted lines = schematic connections, not trace routes. Tap another pin, or switch to the other side.',
   nlPower:n=>`Power signal (${n} pins): pins are marked, without lines.`,
   nlNone:'Pin not found in the transcribed schematic: no known connection.',
-  nlBadgeScan:'Incomplete board · no traces', nlTitleScan:'Incomplete board: components and pins only',
-  nlText1Scan:'Automatic tracing of this board’s scans is not reliable enough to be published. Components and their pins are placed and described, but the connections between chips are unknown.',
+  nlBadgeScan:'Incomplete board · partial connections', nlTitleScan:'Incomplete board: partial connections',
+  nlText1Scan:'Automatic tracing of this board’s scans is not reliable enough to publish everything. Components and their pins are placed and described; only a few verified connections are shown.',
   nlLi1Scan:'Tap a pin: its name and the signal description are shown.',
-  nlLi2Scan:'Only ground (GND) and power (VCC) are connected, from the pinouts. No other connection is shown.',
-  nlLi3Scan:'Connections may be added later (flux cleaning, new scan). Meanwhile, trace them with a multimeter.',
-  legLinkScan:'power connection (not a trace)',
-  discNl1Scan:'Incomplete board: components and pins only, traces and connections not traced',
-  nlNoneScan:'No connection traced for this pin (incomplete board): measure it with a multimeter.',
-  nlFactsScan:(n)=>`${n} connected pin${n!==1?'s':''} from the pinouts (power) · traces not drawn`,
-  nlMsgScan:'Dotted lines = power connections inferred from the pinouts, not trace routes.',
+  nlLi2Scan:'Ground (GND) and power (VCC) are connected from the pinouts. Other connections shown are only those traced with certainty on the scans: a pin without a connection is not necessarily unconnected.',
+  nlLi3Scan:'More connections will be added over time. Meanwhile, trace them with a multimeter.',
+  legLinkScan:'traced connection (not the trace route)',
+  discNl1Scan:'Incomplete board: partial connections, only those traced with certainty',
+  nlNoneScan:'No certain connection traced for this pin (incomplete board): measure it with a multimeter.',
+  nlFactsScan:(n)=>`${n} connected pin${n!==1?'s':''} (certain connections only) · traces not drawn`,
+  nlMsgScan:'Dotted lines = traced connections, not trace routes. Other connections may be missing.',
   nlNoLink:'no known connection',
   tagNl:'connections only, no traces', netName:n=>`Signal ${n} `, pinsN:n=>n!==1?'pins ':'pin ', faceTop:'top', faceBot:'bottom', faceTh:'through-hole',
   ddVer:(v,bv)=>`Tool v${v} · board generated by pipeline `+(bv?`v${bv}`:'older than 1.0.0'),
@@ -478,7 +478,8 @@ function td(s){ // traduit un terme de données (français dans les fichiers) po
     .replace(/^Recréation KiCad et scans\s*:\s*/,'KiCad recreation and scans: ').replace('(domaine public)','(public domain)')
     .replace(/^Schémas\s*:\s*/,'Schematics: ').replace(/scans\s*:\s*/i,m=>m[0]+'cans: ').replace('liaisons transcrites à la main','connections transcribed by hand')
     .replace('manuel Konami et pages OBJECT / VRAM de GURU','Konami manual and OBJECT / VRAM pages by GURU')
-    .replace(/photo\s*:\s*/,'photo: ').replace(/brochages\s*:\s*/,'pinouts: ');
+    .replace(/photo\s*:\s*/,'photo: ').replace(/brochages\s*:\s*/,'pinouts: ')
+    .replace('face soudure, pistes pâles : ','solder side, faint traces: ').replace('liaisons partielles','partial connections');
 }
 let lang=null;
 try{lang=JSON.parse(localStorage.getItem('pcbnet-prefs')||'{}').lang||null;}catch(e){}
