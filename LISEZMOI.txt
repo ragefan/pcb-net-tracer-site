@@ -1,4 +1,4 @@
-PCB Net Tracer 1.10.0 (2026-10-15)
+PCB Net Tracer 1.11.0 (2026-10-15)
 ==================================
 
 FR — Touchez une pin sur l'image d'une carte double face : le net complet s'affiche sur les deux faces.
