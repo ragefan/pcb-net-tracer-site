@@ -175,6 +175,18 @@ dialog.panel h2{margin:0 0 2px;font-size:17px}
 .nl-info ul{margin:0 0 10px;padding-left:18px;font-size:13px;line-height:1.45;color:var(--ink)}
 .tag.warn{border-color:var(--warn);color:var(--warn)}
 .legend .nl-line{display:inline-block;width:18px;border-top:2px dashed var(--solder);vertical-align:middle;margin-right:5px}
+/* annotation des pistes (outil caché : 5 touchers sur la version, ou ?annot=1) */
+.tool#t-ann[aria-pressed="true"]{border-color:var(--ok);color:var(--ok)}
+.ann-box{display:flex;flex-direction:column;gap:6px}
+.ann-box input{font:inherit;font-size:14px;color:var(--ink);background:var(--bench);border:1px solid var(--line);border-radius:7px;
+  padding:6px 9px;min-height:34px;box-sizing:border-box;flex:1 1 180px;min-width:0}
+.ann-box input:focus-visible{outline:2px solid var(--solder);outline-offset:1px}
+.act.ok{border-color:var(--ok);color:var(--ok)}
+.act:disabled{opacity:.4;cursor:default}
+.legend .ann-line{display:inline-block;width:18px;border-top:3px solid var(--ok);vertical-align:middle;margin-right:5px}
+.arow{display:grid;grid-template-columns:12px 1fr auto auto;gap:4px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.arow .sw{width:12px;height:12px;border-radius:3px;background:var(--ok)}
+.arow .nm{font-family:var(--f-data);font-size:13px;word-break:break-word} .arow .nm small{display:block;color:var(--muted);font-size:11px}
 html{padding:env(safe-area-inset-top,0px) 0 0}
 body{margin:0}
 </style>
@@ -211,6 +223,7 @@ body{margin:0}
     <button class="tool" id="t-out" data-i18n-title="zoomOut" data-i18n-aria="zoomOut">−</button>
     <button class="tool" id="t-mir" data-i18n-title="mirrorTitle" data-i18n-aria="mirror" aria-pressed="false">⇋</button>
     <button class="tool" id="t-lbl" data-i18n-title="labels" data-i18n-aria="labels" aria-pressed="true" hidden>IC</button>
+    <button class="tool" id="t-ann" data-i18n-title="annTool" data-i18n-aria="annTool" aria-pressed="false" hidden>✎</button>
   </div>
   <button class="nl-badge" id="nl-badge" aria-expanded="false" aria-controls="nl-info" hidden><span aria-hidden="true">⚠</span><span data-i18n="nlBadge" data-nl="nlBadge">Liaisons seules · pas de pistes</span></button>
   <div class="nl-info" id="nl-info" role="note" hidden>
@@ -231,10 +244,20 @@ body{margin:0}
   <p class="note" id="s-note"></p>
   <p class="note pins" id="s-pins" hidden></p>
   <p class="note cand" id="s-cand" hidden></p>
+  <div class="ann-box" id="ann-box" hidden>
+    <div class="row"><label class="facts" for="ann-net" data-i18n="annNet">Net</label><input id="ann-net" autocomplete="off" spellcheck="false" data-i18n-ph="annNetPh"></div>
+    <div class="facts" id="ann-cur"></div>
+    <div class="row">
+      <button class="act ok" id="ann-finish" data-i18n="annFinish">Terminer la piste</button>
+      <button class="act" id="ann-undo" data-i18n="annUndo">Retirer le point</button>
+      <button class="act" id="ann-cancel" data-i18n="annCancel">Abandonner</button>
+      <button class="act" id="ann-list" data-i18n="annList">Mes annotations</button>
+    </div>
+  </div>
   <div class="row">
     <button class="act" id="a-frame" hidden data-i18n="frame">Cadrer le net</button>
     <button class="act" id="a-clear" hidden data-i18n="clear">Effacer</button>
-    <div class="legend"><span><i style="background:var(--solder)"></i><span data-i18n="legShown">face affichée</span></span><span><i style="background:var(--probe)"></i><span data-i18n="legOther">autre face</span></span><span data-i18n="legSmd">▢ pin CMS</span><span data-i18n="legTh">◯ pin traversante / via</span><span><span class="sens s-S">▶</span> <span data-i18n="legOut">sortie</span> <span class="sens s-E">◀</span> <span data-i18n="legIn">entrée</span> <span class="sens s-B">◆</span> <span data-i18n="legBi">bidir.</span></span><span class="nl-only" hidden><span class="nl-line"></span><span data-i18n="legLink" data-nl="legLink">liaison du schéma (pas une piste)</span></span></div>
+    <div class="legend"><span><i style="background:var(--solder)"></i><span data-i18n="legShown">face affichée</span></span><span><i style="background:var(--probe)"></i><span data-i18n="legOther">autre face</span></span><span data-i18n="legSmd">▢ pin CMS</span><span data-i18n="legTh">◯ pin traversante / via</span><span><span class="sens s-S">▶</span> <span data-i18n="legOut">sortie</span> <span class="sens s-E">◀</span> <span data-i18n="legIn">entrée</span> <span class="sens s-B">◆</span> <span data-i18n="legBi">bidir.</span></span><span id="leg-ann" hidden><span class="ann-line"></span><span data-i18n="legAnn">piste annotée</span></span><span class="nl-only" hidden><span class="nl-line"></span><span data-i18n="legLink" data-nl="legLink">liaison du schéma (pas une piste)</span></span></div>
   </div>
   <p class="disclaim cu-only"><span data-i18n="disc1">Tracé extrait automatiquement des relevés de cuivre</span><span id="s-credit"></span><span data-i18n="disc2">. Les couches internes n’y figurent pas. Confirme au multimètre avant de dessouder.</span></p>
   <p class="disclaim nl-only" hidden><span data-i18n="discNl1" data-nl="discNl1">Liaisons transcrites des schémas, sans relevé de cuivre : le trajet des pistes n’est pas connu</span><span class="s-credit"></span><span data-i18n="discNl2">. Confirme au multimètre avant de dessouder.</span></p>
@@ -265,6 +288,19 @@ body{margin:0}
   <div id="ds-list" tabindex="-1" autofocus></div>
   <p class="disclaim" style="margin:10px 0" data-i18n="dsNote"></p>
   <div class="row"><button class="act" id="ds-close" data-i18n="close">Fermer</button></div>
+</dialog>
+
+<dialog class="panel" id="dlg-ann" aria-labelledby="da-title">
+  <h2 id="da-title" data-i18n="annDlgTitle">Pistes annotées</h2>
+  <div class="facts" id="da-sub"></div>
+  <div id="da-list"></div>
+  <p class="disclaim" style="margin:10px 0" data-i18n="annNote"></p>
+  <div class="row">
+    <button class="act" id="da-export" data-i18n="annExport">Exporter (JSON)</button>
+    <button class="act" id="da-import" data-i18n="annImport">Importer</button>
+    <input type="file" id="da-file" accept="application/json,.json" hidden>
+    <button class="act" id="da-close" data-i18n="close">Fermer</button>
+  </div>
 </dialog>
 
 <dialog class="panel" id="dlg-data" aria-labelledby="dd-title">
@@ -367,6 +403,19 @@ fr:{
   nlFactsScan:(n)=>`${n} broche${n>1?'s':''} reliée${n>1?'s':''} (liaisons sûres seulement) · pistes non tracées`,
   nlMsgScan:'Traits pointillés = liaisons relevées, pas le trajet des pistes. D’autres liaisons peuvent manquer.',
   nlNoLink:'aucune liaison connue',
+  annTool:'Annoter les pistes', annTitle:'Annotation des pistes', annNet:'Net', annNetPh:'nom du net (ex. 68k D0)',
+  annHelp:'Touche la carte pour poser les points de la piste : ils s’accrochent aux broches et aux vias proches. Appui maintenu : loupe. Change de face en cours de piste au passage d’un via.',
+  annCur:(n,f)=>n?`${n} point${n>1?'s':''} posé${n>1?'s':''} · face ${f}`:'Aucun point posé : touche le départ de la piste.',
+  annFinish:'Terminer la piste', annUndo:'Retirer le point', annCancel:'Abandonner', annList:'Mes annotations',
+  annSaved:n=>`${n} piste${n>1?'s':''} annotée${n>1?'s':''} pour cette carte, dans ce navigateur.`,
+  annDlgTitle:'Pistes annotées', annDlgSub:(b,n)=>`${b} · ${n} piste${n>1?'s':''}`,
+  annEmpty:'Aucune piste annotée pour cette carte.', annShow:'Voir', annDel:'Supprimer', annDelQ:n=>`Supprimer la piste « ${n} » ?`,
+  annExport:'Exporter (JSON)', annImport:'Importer', annImported:n=>`${n} piste${n>1?'s':''} importée${n>1?'s':''}.`,
+  annBadFile:'Fichier non reconnu (pas un export d’annotations).', annOtherBoard:'Ce fichier concerne une autre carte (dimensions différentes) : rien n’a été importé.',
+  annOn:'Annotation des pistes disponible : bouton ✎ sur la carte.', annOff:'Annotation des pistes masquée.',
+  annNote:'Les annotations restent dans ce navigateur, sur cet appareil (rien n’est envoyé). Exporte-les pour les garder ou les transmettre.',
+  annNoStore:'Stockage local indisponible (navigation privée ?) : les annotations seront perdues en fermant la page.',
+  annPts:(n,f)=>`${n} point${n>1?'s':''} · ${f}`, annNoNet:'sans nom', annCount:n=>`${n} piste${n>1?'s':''} annotée${n>1?'s':''} (vert)`, legAnn:'piste annotée',
   tagNl:'liaisons seules, sans pistes', netName:n=>`Signal ${n} `, pinsN:n=>n>1?'broches ':'broche ', faceTop:'dessus', faceBot:'dessous', faceTh:'traversant',
   ddVer:(v,bv)=>`Outil v${v} · carte générée par le pipeline `+(bv?`v${bv}`:'d’une version antérieure à 1.0.0'),
 },
@@ -453,6 +502,19 @@ en:{
   nlFactsScan:(n)=>`${n} connected pin${n!==1?'s':''} (certain connections only) · traces not drawn`,
   nlMsgScan:'Dotted lines = traced connections, not trace routes. Other connections may be missing.',
   nlNoLink:'no known connection',
+  annTool:'Annotate traces', annTitle:'Trace annotation', annNet:'Net', annNetPh:'net name (e.g. 68k D0)',
+  annHelp:'Tap the board to place the trace points: they snap to nearby pins and vias. Long press: magnifier. Switch sides mid-trace when passing a via.',
+  annCur:(n,f)=>n?`${n} point${n!==1?'s':''} placed · ${f} side`:'No point yet: tap where the trace starts.',
+  annFinish:'Finish trace', annUndo:'Remove point', annCancel:'Discard', annList:'My annotations',
+  annSaved:n=>`${n} annotated trace${n!==1?'s':''} for this board, in this browser.`,
+  annDlgTitle:'Annotated traces', annDlgSub:(b,n)=>`${b} · ${n} trace${n!==1?'s':''}`,
+  annEmpty:'No annotated trace for this board.', annShow:'Show', annDel:'Delete', annDelQ:n=>`Delete trace “${n}”?`,
+  annExport:'Export (JSON)', annImport:'Import', annImported:n=>`${n} trace${n!==1?'s':''} imported.`,
+  annBadFile:'File not recognized (not an annotation export).', annOtherBoard:'This file is for another board (different dimensions): nothing was imported.',
+  annOn:'Trace annotation available: ✎ button on the board.', annOff:'Trace annotation hidden.',
+  annNote:'Annotations stay in this browser, on this device (nothing is sent). Export them to keep or share them.',
+  annNoStore:'Local storage unavailable (private browsing?): annotations will be lost when the page is closed.',
+  annPts:(n,f)=>`${n} point${n!==1?'s':''} · ${f}`, annNoNet:'unnamed', annCount:n=>`${n} annotated trace${n!==1?'s':''} (green)`, legAnn:'annotated trace',
   tagNl:'connections only, no traces', netName:n=>`Signal ${n} `, pinsN:n=>n!==1?'pins ':'pin ', faceTop:'top', faceBot:'bottom', faceTh:'through-hole',
   ddVer:(v,bv)=>`Tool v${v} · board generated by pipeline `+(bv?`v${bv}`:'older than 1.0.0'),
 }};
@@ -463,7 +525,7 @@ const DATA_EN={'RAM 68k':'68k RAM','RAM sauvegarde':'Backup RAM','VRAM rapide':'
   'JAMMA composants':'JAMMA component side','JAMMA soudure':'JAMMA solder side','Détrompeur':'Key','HP +':'Speaker +','HP −':'Speaker −',
   'Rouge':'Red','Vert':'Green','Bleu':'Blue','Masse vidéo':'Video GND','Masse audio':'Audio GND','Synchro':'Sync','GND pré':'Pre GND',
   'Filtre':'Ripple filter','Haut':'Up','Bas':'Down','Gauche':'Left','Droite':'Right','Pièce':'Coin','Compteur':'Coin counter','Blocage':'Coin lockout',
-  'Slot CHA':'CHA slot','Slot PROG':'PROG slot','Carte mémoire':'Memory card','Prise A/V':'A/V socket','Alimentation':'Power',
+  'Slot CHA':'CHA slot','Slot PROG':'PROG slot','Vers carte slots':'To slot board','Vers carte principale':'To main board','Carte mémoire':'Memory card','Prise A/V':'A/V socket','Alimentation':'Power',
   'Masse A/V':'A/V ground','Blindage':'Shield','Manette':'Joypad','FILTRE':'Ripple filter','Oscillateur':'Oscillator',
   'Réseau R ×8':'Resistor network ×8','Réseau R ×4':'Resistor network ×4','Filtre EMI':'EMI filter','Connecteur 15':'15-pin connector',
   'rouge':'red','vert':'green','bleu':'blue','tuiles':'tiles','sprites':'sprites','son':'sound','joueur':'player'};
@@ -479,7 +541,8 @@ function td(s){ // traduit un terme de données (français dans les fichiers) po
     .replace(/^Schémas\s*:\s*/,'Schematics: ').replace(/scans\s*:\s*/i,m=>m[0]+'cans: ').replace('liaisons transcrites à la main','connections transcribed by hand')
     .replace('manuel Konami et pages OBJECT / VRAM de GURU','Konami manual and OBJECT / VRAM pages by GURU')
     .replace(/photo\s*:\s*/,'photo: ').replace(/brochages\s*:\s*/,'pinouts: ')
-    .replace('face soudure, pistes pâles : ','solder side, faint traces: ').replace('liaisons partielles','partial connections');
+    .replace('face soudure, pistes pâles : ','solder side, faint traces: ')
+    .replace('(carte principale)','(main board)').replace('(carte du dessus)','(top board)').replace('liaisons partielles','partial connections');
 }
 let lang=null;
 try{lang=JSON.parse(localStorage.getItem('pcbnet-prefs')||'{}').lang||null;}catch(e){}
@@ -513,11 +576,12 @@ const img={}; const map={top:null,bot:null};
 let face='top', bg='draw', mirror=false, labels=true, sheetH=null; // sheetH : hauteur choisie du bandeau (null = auto)
 let PARTS=[], FONT_UI='sans-serif', FONT_DATA='monospace'; const PINS_BY_NET=new Map(); // composants (board.json "parts") et leurs broches par net
 let sel=0, isExample=false, overlay=null, oCtx=null, selPin=null, sigSort='part'; // sigSort : tri du menu Signaux
+let annAvail=false, annOn=false; // annotation des pistes : outil disponible (caché par défaut) ; mode actif
 let brand=''; // marque filtrée dans la liste des cartes ('' = toutes, '?' = sans marque)
 let s=1, tx=0, ty=0; // écran = s*img + t (img x éventuellement miroir)
 // préférences (l'ancienne clé « mv1fzs » est reprise)
-try{const p=JSON.parse(localStorage.getItem('pcbnet-prefs')||localStorage.getItem('mv1fzs')||'{}'); if(p.bg) bg=p.bg; if(p.mirror) mirror=!!p.mirror; if(p.labels===false) labels=false; if(p.sheetH>0) sheetH=p.sheetH; if(p.sigSort==='sig') sigSort='sig'; if(typeof p.brand==='string') brand=p.brand;}catch(e){}
-function save(){try{localStorage.setItem('pcbnet-prefs',JSON.stringify({bg,mirror,labels,sheetH,lang,sigSort,brand}))}catch(e){}}
+try{const p=JSON.parse(localStorage.getItem('pcbnet-prefs')||localStorage.getItem('mv1fzs')||'{}'); if(p.bg) bg=p.bg; if(p.mirror) mirror=!!p.mirror; if(p.labels===false) labels=false; if(p.sheetH>0) sheetH=p.sheetH; if(p.sigSort==='sig') sigSort='sig'; if(typeof p.brand==='string') brand=p.brand; if(p.annot) annAvail=true;}catch(e){}
+function save(){try{localStorage.setItem('pcbnet-prefs',JSON.stringify({bg,mirror,labels,sheetH,lang,sigSort,brand,annot:annAvail}))}catch(e){}}
 
 // --- Intégrité : chaque image est lue en octets ; son CRC32, sa taille et ses dimensions sont comparés aux valeurs
 // que le pipeline a écrites dans board.json (files). Ce sont donc exactement les fichiers affichés qui sont vérifiés.
@@ -556,7 +620,7 @@ async function init(){
   const res=await fetch(DATA+'board.json').catch(()=>null);
   if(!res||!res.ok){ fileState['board.json']={err:res?['http',res.status]:['net']}; updateDataDot(); throw res?'board.json '+res.status:OFFLINE; }
   B=await res.json(); W=B.w; H=B.h; fileState['board.json']={ver:B.version};
-  if(B.name){$('b-name').textContent=B.name; document.title=B.name+' · PCB Net Tracer';} showCredit();
+  showCredit();
   const ph=B.photos||{}; const hasPhotos=!!(ph.photo_top&&ph.photo_bottom); if(!hasPhotos&&!NL()){bg='draw'; $('b-photo').hidden=true;}
   if(NL()){ bg='photo'; $('b-draw').parentNode.hidden=true; } // seul fond possible : les scans
   const files=needed(B);
@@ -581,7 +645,8 @@ async function init(){
 }
 
 const errText=e=>t(e[0],...e.slice(1)); // ['http',404] -> « absent (404) » / « missing (404) »
-function showCredit(){ // crédit toujours visible, même sur téléphone (bandeau)
+function showCredit(){ // nom de la carte et crédit toujours visibles, même sur téléphone (bandeau), dans la langue choisie
+  if(B&&B.name){ const n=td(B.name); $('b-name').textContent=n; document.title=n+' · PCB Net Tracer'; }
   const c=B&&B.credit?td(B.credit):''; $('b-credit').textContent=c; $('s-credit').textContent=c?' ('+c+')':''; for(const e of document.querySelectorAll('.s-credit')) e.textContent=c?' ('+c+')':'';
 }
 function fileStatus(st,exp,Bx){ // -> [classe ok|ko|unk, message]
@@ -612,7 +677,7 @@ const kb=n=>n>=1048576?(n/1048576).toFixed(2)+t('MB'):Math.round(n/1024)+t('kB')
 let checkedAt=null; // heure de la dernière vérification sur le serveur
 function renderData(){
   const all=updateDataDot(), list=$('dd-list'), sum=$('dd-sum');
-  $('dd-sub').textContent=(B&&B.name?B.name+' · ':'')+t('ddSub',DATA||'—',fileSource==='server',checkedAt&&checkedAt.toLocaleTimeString(lang));
+  $('dd-sub').textContent=(B&&B.name?td(B.name)+' · ':'')+t('ddSub',DATA||'—',fileSource==='server',checkedAt&&checkedAt.toLocaleTimeString(lang));
   sum.textContent=t(all==='ok'?'sumOk':all==='ko'?'sumKo':'sumUnk');
   const Bv=fileSource==='server'?srvB:B; $('dd-ver').textContent=t('ddVer',APP.version,Bv&&Bv.tool);
   sum.className='note '+(all==='ko'?'ko':'');
@@ -697,7 +762,7 @@ async function openBoards(){
     const btn=document.createElement('button'); btn.className='bcard'; if(cur) btn.setAttribute('aria-current','true');
     const im=document.createElement('img'); im.alt=''; im.loading='lazy'; if(b.thumb) im.src=dir+b.thumb+'?v='+b.version;
     const box=document.createElement('div'), line=(c,txt)=>{const e=document.createElement('div'); e.className=c; e.textContent=txt; box.append(e);};
-    line('t',b.name); if(b.credit) line('m',td(b.credit));
+    line('t',td(b.name)); if(b.credit) line('m',td(b.credit));
     line('m',t('card',b.parts,b.nets,b.version,b.built));
     if(b.reliability){ // fiabilité du mapping (catalogue, calculée par le pipeline)
       const r=b.reliability, e=document.createElement('div');
@@ -945,6 +1010,7 @@ function draw(){
       ctx.beginPath(); ctx.arc(selPin[0],selPin[1],Math.max(selPin[2]+5,14/s),0,Math.PI*2); ctx.stroke();
     }
   }
+  drawAnn();
   drawLabels();
   drawSens();
   if(aim) drawLoupe();
@@ -1043,6 +1109,7 @@ function applyCand(){
   selPin=c.pin; select(c.net,false,true);
 }
 function pick(px,py){
+  if(annOn){ annAdd(px,py); return; } // annotation : un toucher pose un point de la piste
   const [x,y]=toImg(px,py);
   const again=lastTap && lastTap.face===face && Math.hypot(px-lastTap.px,py-lastTap.py)<=SAME_SPOT && cands.length>1 && sel===cands[candIdx].net;
   if(again){ candIdx=(candIdx+1)%cands.length; }
@@ -1056,10 +1123,11 @@ function select(k,example,keepPin){
   sel=k; isExample=!!example && k>0; buildOverlay(); draw(); info();
 }
 function info(){
+  $('ann-box').hidden=!annOn; if(annOn) return annInfo();
   const T=$('s-title'),f=$('s-facts'),n=$('s-note');
   $('a-frame').hidden=!sel; $('a-clear').hidden=!sel&&!(NL()&&selPin);
   if(!sel&&!(NL()&&selPin)){$('s-pins').hidden=$('s-cand').hidden=$('s-desc').hidden=true; T.textContent=t('tapPrompt');f.textContent='';n.textContent=t('holdHint');n.className='note';return;}
-  if(NL()) return infoNl();
+  if(NL()){ infoNl(); return annFacts(); }
   const m=B.nets[sel], pt=m[4], pb=m[5], nh=m[6], tot=pt+pb;
   const hs=B.holes.filter(h=>h[4]===sel), vias=hs.filter(h=>h[2]<B.viaR).length, pins=hs.length-vias;
   const cms=B.pads.filter(p=>p[5]===sel).length;
@@ -1092,6 +1160,7 @@ function info(){
     cl.hidden=false;
     cl.textContent=t('cand',candIdx+1,cands.length);
   } else cl.hidden=true;
+  annFacts();
 }
 
 // --- Signaux des composants : une ligne par signal et par composant (broches de même nom regroupées),
@@ -1121,7 +1190,7 @@ function renderSignals(){
   });
   if(sigSort==='sig') rows.sort((a,b)=>C.compare(a.name,b.name)||C.compare(PARTS[a.pi].ref,PARTS[b.pi].ref));
   else rows.sort((a,b)=>C.compare(PARTS[a.pi].ref,PARTS[b.pi].ref)||(a.pi-b.pi)||C.compare(String(a.nums[0]),String(b.nums[0])));
-  $('ds-sub').textContent=(B.name?B.name+' · ':'')+t('dsCount',rows.length,all.length,PARTS.length)+(B.signals?'':' · '+t('dsOld'));
+  $('ds-sub').textContent=(B.name?td(B.name)+' · ':'')+t('dsCount',rows.length,all.length,PARTS.length)+(B.signals?'':' · '+t('dsOld'));
   list.textContent=''; const frag=document.createDocumentFragment(); let grp=-1;
   const el=(tag,c,txt,parent)=>{const e=document.createElement(tag); if(c) e.className=c; if(txt!=null) e.textContent=txt; parent.append(e); return e;};
   for(const r of rows){
@@ -1202,6 +1271,7 @@ function setFace(f){
   const r=stage.getBoundingClientRect(); const [cx,cy]=toImg(r.width/2,r.height/2);
   face=f; let X=cx; if(mx()) X=W-cx; tx=r.width/2-X*s; ty=r.height/2-cy*s;
   buildOverlay(); syncUI(); draw();
+  if(annOn) annInfo();
 }
 $('f-top').onclick=()=>setFace('top'); $('f-bot').onclick=()=>setFace('bot');
 $('b-draw').onclick=()=>{bg='draw';save();syncUI();draw();}; $('b-photo').onclick=()=>{bg='photo';save();syncUI();draw();};
@@ -1243,6 +1313,7 @@ stage.addEventListener('pointermove',e=>{
 });
 function up(e){
   if(!pts.has(e.pointerId)) return; pts.delete(e.pointerId); clearTimeout(holdTimer);
+  if(aim&&annOn){ const a=aim; aim=null; aimCand=null; down=null; if(e.type==='pointerup') annAdd(a.x,a.y); else draw(); return; }
   if(aim){ // relâché dans la loupe : sélection au point visé
     const c=(e.type==='pointerup')?aimCand:null; aim=null; aimCand=null; down=null;
     const [ix,iy]=toImg(pos(e).x,pos(e).y);
@@ -1303,6 +1374,142 @@ grip.addEventListener('keydown',e=>{
 grip.addEventListener('dblclick',()=>{ sheetOpen=null; setSheet(null); }); // double-clic : hauteur automatique
 window.addEventListener('resize',()=>{ if(sheetH!=null) setSheet(sheetH,true); });
 if(sheetH!=null) setSheet(sheetH,true);
+
+
+// --- Annotation des pistes (outil caché : 5 touchers rapides sur la version, ou ?annot=1)
+// L'utilisateur dessine la piste d'un net point par point (accroche aux broches, pastilles et vias proches) ; les
+// tracés sont gardés dans ce navigateur (localStorage « pcbnet-annot », par dossier de carte), exportables en JSON.
+// Coordonnées = repère de board.json (w×h) ; chaque point garde sa face (on change de face au passage d'un via).
+const ANN_KEY='pcbnet-annot', ANN_SNAP=14;
+let annCur=null, annStoreOk=true, annNetAuto=true; // annNetAuto : nom du net proposé, pas encore tapé à la main // piste en cours : {pts:[[x,y,face,accroche]]}
+function annAll(){ try{ return JSON.parse(localStorage.getItem(ANN_KEY)||'{}'); }catch(e){ annStoreOk=false; return {}; } }
+let annMem=null; // repli en mémoire si le stockage local est indisponible
+function annBoardKey(){ return new URL(DATA,location.href).pathname; }
+function annList(){ if(annMem) return annMem; const a=annAll()[annBoardKey()]; return a&&Array.isArray(a.traces)?a.traces:[]; }
+function annStore(list){
+  try{ const a=annAll(); a[annBoardKey()]={name:B.name||'',w:W,h:H,traces:list}; localStorage.setItem(ANN_KEY,JSON.stringify(a)); annMem=null; }
+  catch(e){ annStoreOk=false; annMem=list; }
+}
+const annFaceName=f=>t(f==='top'?'faceTop':'faceBot');
+function annSnap(x,y){ // point le plus proche à accrocher (centre d'une broche, d'une pastille, d'un trou / via)
+  const r=ANN_SNAP/s, fl=face==='top'?0:1; let best=null;
+  const put=(px,py,d,lab,net)=>{ if(d<=r&&(!best||d<best.d)) best={x:px,y:py,d,lab,net}; };
+  PARTS.forEach(P=>{ if(!partOn(P)||x<P.x0-r||x>P.x1+r||y<P.y0-r||y>P.y1+r) return;
+    for(const p of P.pins){ const d=Math.hypot(Math.max(Math.abs(x-p[0])-p[2]/2,0),Math.max(Math.abs(y-p[1])-p[3]/2,0)); put(p[0],p[1],d,P.ref+'.'+p[4],p[6]); } });
+  for(const h of B.holes||[]){ put(h[0],h[1],Math.max(Math.hypot(x-h[0],y-h[1])-h[2],0),'via',h[4]); }
+  for(const p of B.pads||[]){ if(p[4]!==fl) continue; put(p[0],p[1],Math.hypot(Math.max(Math.abs(x-p[0])-p[2]/2,0),Math.max(Math.abs(y-p[1])-p[3]/2,0)),'pad',p[5]); }
+  return best;
+}
+function annNetLabel(net){ return !net?'':NL()?(B.net_names&&B.net_names[net])||'':'Net '+net; }
+function annAdd(px,py){
+  const [x,y]=toImg(px,py), sn=annSnap(x,y);
+  if(!annCur) annCur={pts:[]};
+  annCur.pts.push(sn?[Math.round(sn.x*10)/10,Math.round(sn.y*10)/10,face,sn.lab]:[Math.round(x*10)/10,Math.round(y*10)/10,face,null]);
+  const inp=$('ann-net'); if(annNetAuto&&annCur.pts.length===1&&sn&&sn.net) inp.value=annNetLabel(sn.net); // net de la broche de départ
+  annInfo(); draw();
+}
+function annFinish(){
+  if(!annCur||annCur.pts.length<2){ annCur=null; annInfo(); draw(); return; }
+  const name=$('ann-net').value.trim();
+  const list=annList().concat([{id:Date.now(),net:name,pts:annCur.pts,date:new Date().toISOString(),board:B.version||null,tool:APP.version}]);
+  annStore(list); annCur=null; if(annNetAuto) $('ann-net').value=''; annInfo(); draw();
+}
+function annPinNet(lab){ // « REF.num » -> net actuel de la broche
+  if(!lab||lab==='via'||lab==='pad') return 0; const i=lab.lastIndexOf('.'), ref=lab.slice(0,i), num=lab.slice(i+1);
+  for(const P of PARTS) if(P.ref===ref) for(const p of P.pins) if(String(p[4])===num) return p[6]||0;
+  return 0;
+}
+function annShown(tr){ // hors du mode annotation : pistes du net sélectionné seulement
+  if(annOn) return true; if(!sel) return false;
+  if(tr.net&&tr.net===annNetLabel(sel)) return true;
+  return tr.pts.some(p=>p[3]&&annPinNet(p[3])===sel);
+}
+function drawAnn(){
+  if(!B) return; const list=annList().filter(annShown);
+  if(!list.length&&!annCur) return;
+  const seg=(pts,col,lw)=>{ for(let i=1;i<pts.length;i++){ const a=pts[i-1], b=pts[i], on=b[2]===face;
+      ctx.globalAlpha=on?1:0.45; ctx.setLineDash(on?[]:[6/s,5/s]); ctx.strokeStyle=col; ctx.lineWidth=Math.max(lw/s,0.8);
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
+    ctx.globalAlpha=1; ctx.setLineDash([]); };
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  for(const tr of list){ seg(tr.pts,'#0b0d0f',6); seg(tr.pts,'#3ccf6e',3); }
+  if(annCur){ seg(annCur.pts,'#0b0d0f',6); seg(annCur.pts,'#ffffff',3);
+    ctx.fillStyle='#ffffff'; for(const p of annCur.pts){ if(p[2]!==face) continue; ctx.beginPath(); ctx.arc(p[0],p[1],Math.max(4/s,1),0,Math.PI*2); ctx.fill(); } }
+  ctx.lineCap='butt';
+}
+function annFacts(){ // fiche du net : nombre de pistes annotées sur cet appareil
+  const n=sel?annList().filter(annShown).length:0; if(n) $('s-facts').textContent+=' · '+t('annCount',n);
+}
+function annInfo(){
+  $('ann-box').hidden=false; $('s-pins').hidden=$('s-cand').hidden=$('s-desc').hidden=true;
+  $('a-frame').hidden=$('a-clear').hidden=true;
+  $('s-title').textContent=t('annTitle');
+  const n=annCur?annCur.pts.length:0; $('ann-cur').textContent=t('annCur',n,annFaceName(face));
+  $('ann-finish').disabled=n<2; $('ann-undo').disabled=!n; $('ann-cancel').disabled=!n;
+  $('s-facts').textContent=t('annSaved',annList().length);
+  const no=$('s-note'); no.textContent=annStoreOk?t('annHelp'):t('annNoStore'); no.className='note'+(annStoreOk?'':' warn');
+}
+function annSetMode(on){
+  annOn=on; $('t-ann').setAttribute('aria-pressed',on);
+  if(on&&annNetAuto) $('ann-net').value=sel&&!isExample?annNetLabel(sel):'';
+  if(!on){ annCur=null; }
+  cands=[]; lastTap=null; tapMark=null; info(); draw();
+}
+function annSetAvail(on){
+  annAvail=on; save(); $('t-ann').hidden=!on; $('leg-ann').hidden=!on;
+  if(!on&&annOn) annSetMode(false);
+}
+$('t-ann').onclick=()=>annSetMode(!annOn);
+$('ann-finish').onclick=annFinish;
+$('ann-net').addEventListener('input',e=>{ annNetAuto=!e.target.value.trim(); });
+$('ann-undo').onclick=()=>{ if(annCur){ annCur.pts.pop(); if(!annCur.pts.length) annCur=null; } annInfo(); draw(); };
+$('ann-cancel').onclick=()=>{ annCur=null; annInfo(); draw(); };
+// accès caché : 5 touchers rapprochés sur la version de l'outil
+let verTaps=[];
+$('b-ver').addEventListener('click',()=>{ const now=performance.now(); verTaps=verTaps.filter(x=>now-x<2500).concat(now);
+  if(verTaps.length>=5){ verTaps=[]; annSetAvail(!annAvail);
+    if(B&&!annOn){ const no=$('s-note'); no.textContent=t(annAvail?'annOn':'annOff'); no.className='note'; } } });
+if((new URLSearchParams(location.search)).get('annot')==='1') annAvail=true;
+$('t-ann').hidden=!annAvail; $('leg-ann').hidden=!annAvail;
+// liste, export, import
+const dlgA=$('dlg-ann');
+function renderAnn(){
+  const list=annList(), box=$('da-list'); box.textContent='';
+  $('da-sub').textContent=t('annDlgSub',B&&B.name?td(B.name):DATA,list.length);
+  if(!list.length){ const e=document.createElement('p'); e.className='note'; e.textContent=t('annEmpty'); box.append(e); }
+  for(const tr of list.slice().reverse()){
+    const row=document.createElement('div'); row.className='arow';
+    const sw=document.createElement('i'); sw.className='sw';
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=tr.net||t('annNoNet');
+    const faces=[...new Set(tr.pts.map(p=>p[2]))].map(annFaceName).join(' + ');
+    const sm=document.createElement('small'); sm.textContent=t('annPts',tr.pts.length,faces)+' · '+new Date(tr.date).toLocaleString(lang,{dateStyle:'short',timeStyle:'short'}); nm.append(sm);
+    const bs=document.createElement('button'); bs.className='act'; bs.textContent=t('annShow');
+    bs.onclick=()=>{ dlgA.close(); const xs=tr.pts.map(p=>p[0]), ys=tr.pts.map(p=>p[1]);
+      setFace(tr.pts[0][2]); if(!annOn) annSetMode(true); fitBox(Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)); draw(); };
+    const bd=document.createElement('button'); bd.className='act'; bd.textContent=t('annDel');
+    bd.onclick=()=>{ if(!confirm(t('annDelQ',tr.net||t('annNoNet')))) return; annStore(annList().filter(q=>q.id!==tr.id)); renderAnn(); info(); draw(); };
+    row.append(sw,nm,bs,bd); box.append(row);
+  }
+}
+$('ann-list').onclick=()=>{ renderAnn(); dlgA.showModal(); };
+$('da-close').onclick=()=>dlgA.close();
+dlgA.addEventListener('click',e=>{ if(e.target===dlgA) dlgA.close(); });
+$('da-export').onclick=()=>{
+  const doc={format:'pcbnet-annotations',version:1,tool:APP.version,exported:new Date().toISOString(),
+    board:{name:B.name||'',dir:annBoardKey(),version:B.version||null,w:W,h:H},traces:annList()};
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(doc,null,1)],{type:'application/json'}));
+  a.download='pcbnet-annotations-'+(B.name||'carte').replace(/[^\w.-]+/g,'_')+'.json'; document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+};
+$('da-import').onclick=()=>$('da-file').click();
+$('da-file').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  let doc=null; try{ doc=JSON.parse(await f.text()); }catch(err){}
+  if(!doc||doc.format!=='pcbnet-annotations'||!Array.isArray(doc.traces)){ alert(t('annBadFile')); return; }
+  if(doc.board&&(doc.board.w!==W||doc.board.h!==H)){ alert(t('annOtherBoard')); return; }
+  const cur=annList(), ids=new Set(cur.map(x=>x.id)), add=doc.traces.filter(x=>x&&Array.isArray(x.pts)&&!ids.has(x.id));
+  annStore(cur.concat(add)); renderAnn(); info(); draw(); alert(t('annImported',add.length));
+};
 
 // La zone de la carte change de taille sans que la fenêtre bouge (la fiche du bas grandit selon le net) :
 // sans ce suivi, le canvas restait étiré et l'image ne correspondait plus aux touchers.

@@ -1,4 +1,4 @@
-PCB Net Tracer 1.11.0 (2026-10-15)
+PCB Net Tracer 1.13.0 (2026-10-29)
 ==================================
 
 FR — Touchez une pin sur l'image d'une carte double face : le net complet s'affiche sur les deux faces.
@@ -23,6 +23,7 @@ Crédits / Credits
   - Neo Geo MV1A — Scans 1200 dpi : Ragefan · face soudure, pistes pâles : scans mvs-scans.com
   - Neo Geo MV1FZS (NEO-MVH) — Relevé du cuivre : GI@NTS 2015
   - Neo Geo MV4 (carte principale) — Schémas : Alpha Denshi / SNK (wiki NeoGeo Dev) · scans : mvs-scans.com · liaisons transcrites à la main
+  - Neo Geo MV4F (carte du dessus) — Schémas : Alpha Denshi / SNK (NEO-SLOT4, NEO-MVH SLOT4F) · brochages : wiki NeoGeo Dev · scans : mvs-scans.com · liaisons transcrites à la main
   Polices / fonts : IBM Plex (SIL Open Font License 1.1, viewer/fonts/OFL.txt)
   Brochages et descriptions des signaux / pinouts and signal descriptions : neogeodev/SVGPinout et
   NeoGeo Development Wiki, fiches constructeurs / datasheets
